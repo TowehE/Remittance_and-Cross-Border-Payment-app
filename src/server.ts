@@ -6,6 +6,7 @@ import user_routes from './user-service/user.routes'
 import rate_routes from './rate-service/rate_routes'
 import { errorHandler } from './shared/middleware/error_middleware'
 import payment_routes from './payment-service/payment_routes'
+import { rawBodyMiddleware } from './shared/middleware/raw_body_middleware'
 // import {PORT} from '../src/shared/config'
 
 const app = express()
@@ -17,6 +18,10 @@ app.use(express.json());
 app.use(cors());
 app.use(express.urlencoded({ extended: true }))
 app.use(morgan('combined'));
+
+
+app.use('/api/v1/webhook', rawBodyMiddleware);
+
 
 // Health check
 app.get('/health', (req, res) => {

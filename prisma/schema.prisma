@@ -54,6 +54,7 @@
     paymentMethod     PaymentMethod
     paymentReference  String?
     metadata          Json? 
+    failureReason     String?
     createdAt         DateTime      @default(now())
     updatedAt         DateTime      @updatedAt
     sender            User          @relation("SenderTransactions", fields: [senderId], references: [id])

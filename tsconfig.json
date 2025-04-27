@@ -13,7 +13,8 @@
   },
   "include": [
     "src/**/*.ts",
-    "node_modules/@prisma/client"
+    "node_modules/@prisma/client",
+    "src/types/**/*.d.ts"
   ],
   "exclude": ["node_modules"]
 }

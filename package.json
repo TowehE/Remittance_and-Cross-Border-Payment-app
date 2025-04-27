@@ -15,7 +15,7 @@
   "license": "ISC",
   "dependencies": {
     "@prisma/client": "^5.10.2",
-    "axios": "^1.8.4",
+    "axios": "^1.9.0",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
@@ -27,6 +27,7 @@
     "paystack-api": "^2.0.6",
     "pg": "^8.15.5",
     "prisma": "^5.10.2",
+    "raw-body": "^3.0.0",
     "redis": "^4.7.0",
     "stripe": "^18.0.0",
     "ts-node": "^10.9.2",
