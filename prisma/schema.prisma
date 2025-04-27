@@ -1,0 +1,111 @@
+  generator client {
+      provider = "prisma-client-js"
+    
+  }
+
+  datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+  }
+
+  model User {
+    id                String            @id @default(uuid())
+    email             String            @unique
+    password          String
+    firstName         String
+    lastName          String
+    phoneNumber       String?
+    userType          String  
+    country          String? 
+    verificationStatus VerificationStatus @default(UNVERIFIED)
+    createdAt         DateTime          @default(now())
+    updatedAt         DateTime          @updatedAt
+    accounts          Account[]
+    sentTransactions  Transaction[]     @relation("SenderTransactions")
+    receivedTransactions Transaction[]  @relation("ReceiverTransactions")
+  }
+
+  model Account {
+    id              String    @id @default(uuid())
+    userId          String
+    accountNumber   String?   @unique
+    externalId      String?
+    balance         Float     @default(0)
+    currency        String    
+    provider        String 
+    isDefault       Boolean   @default(false)
+    createdAt       DateTime  @default(now())
+    updatedAt       DateTime  @updatedAt
+    user            User      @relation(fields: [userId], references: [id])
+    transactions    AccountTransaction[]
+  }
+
+  model Transaction {
+    id                String        @id @default(uuid())
+    senderId          String
+    receiverId        String
+    sourceCurrency    String
+    targetCurrency    String
+    sourceAmount      Float
+    targetAmount      Float
+    exchangeRate      Float
+    fees              Float
+    status            TransactionStatus @default(PENDING)
+    paymentMethod     PaymentMethod
+    paymentReference  String?
+    metadata          Json? 
+    createdAt         DateTime      @default(now())
+    updatedAt         DateTime      @updatedAt
+    sender            User          @relation("SenderTransactions", fields: [senderId], references: [id])
+    receiver          User          @relation("ReceiverTransactions", fields: [receiverId], references: [id])
+  }
+
+   model AccountTransaction {
+    id              String            @id @default(uuid())
+    accountId       String
+    amount          Float
+    currency        String
+    type            TransactionType
+    reference       String?
+    description     String?
+    createdAt       DateTime          @default(now())
+    account         Account           @relation(fields: [accountId], references: [id])
+  }
+
+  model ExchangeRate {
+    id            String    @id @default(uuid())
+    sourceCurrency String
+    targetCurrency String
+    rate          Float
+    lastUpdated   DateTime  @default(now())
+    
+    @@unique([sourceCurrency, targetCurrency])
+  }
+
+  enum VerificationStatus {
+    UNVERIFIED
+    PENDING
+    VERIFIED
+    REJECTED
+  }
+
+  enum TransactionStatus {
+    PENDING
+    PROCESSING
+    COMPLETED
+    FAILED
+    CANCELLED
+  }
+
+  enum PaymentMethod {
+    BANK_TRANSFER
+    CARD
+    MOBILE_MONEY
+    PAYSTACK
+    STRIPE
+  }
+
+   enum TransactionType {
+    CREDIT
+    DEBIT
+  }
