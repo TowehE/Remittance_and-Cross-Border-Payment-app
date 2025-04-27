@@ -15,6 +15,7 @@ Payment integration with Paystack and Stripe
 
 Caching with Redis
 
+
 Transaction history and balance management
 
 Error handling and validations
