@@ -1,4 +1,4 @@
-import express from 'express'
+import express, { Application, Request, Response, NextFunction } from "express";
 import morgan from 'morgan'
 import cors from 'cors'
 import helmet from 'helmet'
@@ -6,21 +6,38 @@ import user_routes from './user-service/user.routes'
 import rate_routes from './rate-service/rate_routes'
 import { errorHandler } from './shared/middleware/error_middleware'
 import payment_routes from './payment-service/payment_routes'
-import { rawBodyMiddleware } from './shared/middleware/raw_body_middleware'
-// import {PORT} from '../src/shared/config'
+import bodyParser from 'body-parser';
+import webhook_routes from './payment-service/wehbook_route'
+import { Request as ExpressRequest } from "express";
 
 const app = express()
 
 
 // middleware
-app.use(helmet());
-app.use(express.json());
-app.use(cors());
-app.use(express.urlencoded({ extended: true }))
 app.use(morgan('combined'));
+app.use(helmet());
+app.use(cors());
 
 
-app.use('/api/v1/webhook', rawBodyMiddleware);
+
+// Middleware to parse raw body for the Stripe webhook
+app.use('/api/v1/webhook/stripe', express.raw({ type: 'application/json' })); // Correctly set content type
+// Extend the Request interface to include rawBody
+interface RequestWithRawBody extends ExpressRequest {
+  rawBody?: any;
+}
+
+// Middleware to add raw body to req object
+app.use('/api/v1/webhook/stripe', (req: RequestWithRawBody, res: Response, next: NextFunction) => {
+    if (req.headers["stripe-signature"]) {
+        req.rawBody = req.body; // Use raw body for signature verification
+    }
+    next();
+});
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }))
+
 
 
 // Health check
@@ -42,16 +59,13 @@ app.get('/cancel', (req, res) => {
 })
 
 // Routes
+app.use('/api/v1/webhook', webhook_routes); 
 app.use('/api/v1/auth', user_routes);
 app.use('/api/v1/rates', rate_routes);
 app.use('/api/v1/payment', payment_routes);
 
+
 app.use(errorHandler);
 
-
-// // Start server
-// const server = app.listen(PORT, () => {
-//   console.log(`API Gateway running on port ${PORT}`);
-// });
 
 export default app;

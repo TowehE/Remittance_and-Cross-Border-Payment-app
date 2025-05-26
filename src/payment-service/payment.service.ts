@@ -6,6 +6,7 @@ import * as stripe_service from '../api-gateway/stripe_integration'
 import { get_exchange_rate } from '../rate-service/rate.controller';
 import { get_minimum_transfer_amount } from '../utilis';
 import * as rate_service from '../rate-service/rate.service'
+import Decimal from 'decimal.js';
 
 const prisma = new PrismaClient()
 
@@ -80,8 +81,34 @@ export const intiate_remittance_payment = async (payment_data : intiate_payment_
        throw new customError('Receiver account not found', 404);
    }
 
-  const senderAccount = sender.accounts[0]
-  const receiverAccount = receiver.accounts[0]
+   
+ // Prevent sending to self (by user ID)
+ if (sender.id === receiver.id) {
+    throw new customError('You cannot send money to yourself', 400);
+}
+
+const senderAccount = sender.accounts[0];
+const receiverAccount = receiver.accounts[0];
+
+// Validate sender's currency matches the source currency
+if (senderAccount.currency !== payment_data.currency) {
+    throw new customError(`You can only send ${senderAccount.currency} from this account`, 400);
+}
+
+// Validate receiver's currency is NGN
+// if (receiverAccount.currency !== 'NGN') {
+//     throw new customError('The recipient must have an NGN account for receiving transfers', 400);
+// }
+
+// // Validate target currency is also NGN
+// if (payment_data.targetCurrency !== 'NGN') {
+//     throw new customError('Target currency must be NGN for all transfers', 400);
+// }
+
+  const balance = new Decimal(senderAccount.balance);
+if (balance.lessThan(payment_data.amount)) {
+  throw new customError('Insufficient funds', 400);
+}
 
 // Get the exchange rate
 const exchange_rate = await rate_service.get_exchange_rate(
@@ -94,50 +121,52 @@ if (!exchange_rate) {
     throw new customError('Exchange rate not available for the selected currencies', 400);
   }
 
+// Calculate with Decimal for precision
+const amount = new Decimal(payment_data.amount);
+const fees_percentage = new Decimal(0.015);
+const exchange_rate_value = new Decimal(exchange_rate.rate);
 
-//  calculate the service charge percentage
-const fees_percentage_charge = 0.015
-const fees = payment_data.amount * fees_percentage_charge
-console.log('Payment Amount:', payment_data.amount);
-console.log('Fees:', fees);
-console.log('Exchange Rate:', exchange_rate.rate);
-// calculate the amount the receiver is getting
-// const target_amount = (payment_data.amount - fees) * exchange_rate
+// Calculate fees
+const fees = amount.mul(fees_percentage);
 
-const target_amount = (payment_data.amount - fees) * exchange_rate.rate;
+// Calculate target amount
+const target_amount = amount.minus(fees).mul(exchange_rate_value);
 
-console.log('Target Amount:', target_amount);
+// Convert Decimal objects to numbers before using with Prisma
+const target_amount_number = target_amount.toNumber();
+const fees_number = fees.toNumber();
 
 // Check minimum based on currency
 const minimum_amount = get_minimum_transfer_amount(payment_data.targetCurrency)
 
 
-if (target_amount < minimum_amount) { 
+const minimum_amount_decimal = new Decimal(minimum_amount);
+if (target_amount.lessThan(minimum_amount_decimal)) { 
     throw new customError('Target amount is too small after fees and exchange rate. Please send a higher amount.', 400);
-  }
+}
 
 
-  // Create transaction with proper relations
+//   /Create transaction with proper relations using number values
   const transaction = await prisma.transaction.create({
     data: {
-        sourceAmount: payment_data.amount,
-        targetAmount: target_amount,
-        sourceCurrency: payment_data.currency,
-        targetCurrency: payment_data.targetCurrency,
-        exchangeRate: exchange_rate.rate,
-        fees,
-        status: 'PENDING',
-        paymentMethod: senderAccount.provider.toLowerCase() === 'paystack' 
-            ? 'PAYSTACK' 
-            : 'STRIPE',
-        sender: {
-            connect: { id: payment_data.userId }
-        },
-        receiver: {
-            connect: { id: receiver.id }
-        }
+      sourceAmount: payment_data.amount,
+      targetAmount: target_amount_number, 
+      sourceCurrency: payment_data.currency,
+      targetCurrency: payment_data.targetCurrency,
+      exchangeRate: exchange_rate.rate,
+      fees: fees_number, 
+      status: 'PENDING',
+      paymentMethod: senderAccount.provider.toLowerCase() === 'paystack' 
+          ? 'PAYSTACK' 
+          : 'STRIPE',
+      sender: {
+          connect: { id: payment_data.userId }
+      },
+      receiver: {
+          connect: { id: receiver.id }
+      }
     }
-});
+  });
 
 
 // Generate a unique reference for the payment
@@ -147,7 +176,7 @@ const reference = `RM-${uuidv4()}`
  const metadata = {
     transactionId: transaction.id,
     userId: payment_data.userId,
-    receiverId: payment_data.receiverId,
+    receiverId: payment_data.receiverId  || receiver.id,
   };
   
   let payment_initiation
@@ -172,7 +201,7 @@ await prisma.transaction.update({
 
 return{
     transaction,
-    paymentURL:  payment_initiation.authorization_url,
+    paymentUrl:  payment_initiation.authorization_url,
     reference
 }
 }
@@ -228,6 +257,11 @@ export const process_successful_payment = async (session: { id: string }) => {
             console.error('Transaction not found for payment:', session.id);
             return;
         }
+        if (transaction.status === 'COMPLETED') {
+            console.log(`Transaction ${transaction.id} already processed. Skipping.`);
+            return;
+        }
+
 
         // Update transaction status to 'COMPLETED'
         await prisma.transaction.update({
@@ -250,24 +284,46 @@ export const process_successful_payment = async (session: { id: string }) => {
             return;
         }
 
-        // Decrease sender's balance
+
+        // Use Decimal for precise calculations
+        const sourceAmount = new Decimal(transaction.sourceAmount);
+        const targetAmount = new Decimal(transaction.targetAmount);
+        
+        // Get current balances
+        const senderBalance = new Decimal(senderAccount.balance);
+        const receiverBalance = new Decimal(receiverAccount.balance);
+        
+        // Calculate new balances
+        const newSenderBalance = senderBalance.minus(sourceAmount);
+        const newReceiverBalance = receiverBalance.plus(targetAmount);
+
+        // Format to 2 decimal places and convert back to number
+        const formattedSenderBalance = parseFloat(newSenderBalance.toFixed(2));
+        const formattedReceiverBalance = parseFloat(newReceiverBalance.toFixed(2));
+
+
+        
+        // Update sender's balance with exact value instead of decrementing
         await prisma.account.update({
             where: { id: senderAccount.id },
-            data: { balance: { decrement: transaction.sourceAmount } }
+            data: { balance: formattedSenderBalance }
         });
 
-        // Increase receiver's balance
+        // Update receiver's balance with exact value instead of incrementing
         await prisma.account.update({
             where: { id: receiverAccount.id },
-            data: { balance: { increment: transaction.targetAmount } }
+            data: { balance: formattedReceiverBalance }
         });
+
+
+
 
         // Create account transactions for debit and credit
         await prisma.$transaction([
             prisma.accountTransaction.create({
                 data: {
                     accountId: senderAccount.id,
-                    amount: -transaction.sourceAmount,
+                    amount: -parseFloat(sourceAmount.toFixed(2)),
                     currency: transaction.sourceCurrency,
                     type: 'DEBIT',
                     reference: transaction.paymentReference,
@@ -277,7 +333,7 @@ export const process_successful_payment = async (session: { id: string }) => {
             prisma.accountTransaction.create({
                 data: {
                     accountId: receiverAccount.id,
-                    amount: transaction.targetAmount,
+                    amount: parseFloat(targetAmount.toFixed(2)),
                     currency: transaction.targetCurrency,
                     type: 'CREDIT',
                     reference: transaction.paymentReference,
@@ -292,5 +348,8 @@ export const process_successful_payment = async (session: { id: string }) => {
         throw new customError('Failed to process successful payment', 500);
     }
 };
+
+
+
 
  

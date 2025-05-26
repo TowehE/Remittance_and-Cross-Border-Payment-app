@@ -29,7 +29,7 @@ export const get_cached_rate = async (sourceCurrency: string, targetCurrency: st
   return cachedRate ? cachedRate : null;
 };
 
-export const cache_rate = async (sourceCurrency: string, targetCurrency: string, data: any, expirationSeconds = 259200 ) => {
+export const cache_rate = async (sourceCurrency: string, targetCurrency: string, data: any, expirationSeconds = 36000  ) => {
   const cacheKey = `rate:${sourceCurrency}:${targetCurrency}`;
   await redisClient.set(cacheKey, JSON.stringify(data), {
     EX: expirationSeconds

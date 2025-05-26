@@ -6,7 +6,7 @@ import { customError } from '../shared/middleware/error_middleware';
 import { PrismaClient } from '@prisma/client'
 import { handle_paystack_webhook_event, handle_stripe_webhook_event } from '../api-gateway/webhook.controller';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient(); 
 
 
 class PaymentController {
@@ -31,10 +31,18 @@ class PaymentController {
         receiverAccountNumber
       });
       
+    
       res.status(200).json({
         status: 'success',
-        data: result
+        data: {
+          transactionId: result.transaction.id,
+          paymentUrl: result.paymentUrl, 
+          reference: result.reference,
+           status: 'PENDING', 
+          message: 'Please complete payment using the provided URL'
+        }
       });
+     
     } catch (error) {
       next(error);
     }
@@ -59,14 +67,11 @@ class PaymentController {
     }
   }
 
-
   async handle_stripe_webhook(req: Request, res: Response, next: NextFunction) {
     try {
       await handle_stripe_webhook_event(req, res);
- 
     } catch (error) {
-   
-      console.error('Error in stripe webhook:', error);
+      console.error('Error in Stripe webhook:', error);
       if (!res.headersSent) {
         res.status(500).json({ error: 'Webhook error' });
       }
@@ -74,7 +79,14 @@ class PaymentController {
   }
 
   async handle_paystack_webhook(req: Request, res: Response) {
-    await handle_paystack_webhook_event(req, res);
+    try {
+      await handle_paystack_webhook_event(req, res);
+    } catch (error) {
+      console.error('Error in Paystack webhook:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Webhook error' });
+      }
+    }
   }
 
   async get_payment_status(req: Request, res: Response, next: NextFunction) {

@@ -20,6 +20,9 @@ router.post('/webhook/paystack', express.json(), Payment_controllerr.handle_pays
 
 router.get('/status/:transactionId', auth_middleware, Payment_controllerr.get_payment_status)
 
+router.post('/status', auth_middleware, Payment_controllerr.process_successful_payment)
+
+
 
 
 export default router;
