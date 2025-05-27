@@ -108,7 +108,7 @@ export const handle_paystack_webhook_event = async (req: RequestWithRawBody, res
       return res.status(400).json({ error: 'Invalid signature' });
     }
 
-    const event = req.body;
+    const event = JSON.parse(rawBody.toString());
     console.log(`Received Paystack webhook event: ${event.event}`);
     console.log("this is event", event)
 
