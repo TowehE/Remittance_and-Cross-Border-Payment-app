@@ -17,7 +17,7 @@ const stripe = new Stripe(STRIPE_SECRET_KEY, {
     apiVersion: '2025-03-31.basil'
   });
   
-  // Handles Stripe webhook events
+  // Handles Stripe webhook events on webhook endpoint
  export const handle_stripe_webhook_event = async (req: RequestWithRawBody, res: Response) => {
    let event: Stripe.Event;
  
