@@ -12,12 +12,29 @@ import { Request as ExpressRequest } from "express";
 
 const app = express()
 
+declare module 'express-serve-static-core' {
+  interface Request {
+    rawBody?: Buffer | string;
+  }
+}
+
 
 // middleware
 app.use(morgan('combined'));
 app.use(helmet());
 app.use(cors());
 
+
+// Middleware to parse raw body for the Paystack webhook
+app.use('/api/v1/webhook/paystack', express.raw({ type: 'application/json' }));
+
+// Middleware to add raw body to req object
+app.use('/api/v1/webhook/paystack', (req: Request, res: Response, next: NextFunction) => {
+    if (req.headers['x-paystack-signature']) {
+        req.rawBody = req.body; // Use raw body for signature verification
+    }
+    next();
+});
 
 
 // Middleware to parse raw body for the Stripe webhook

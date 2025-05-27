@@ -1,4 +1,5 @@
 import "express-session";
+import { Request } from 'express';
 
 declare module "express-session" {
   interface SessionData {
@@ -13,3 +14,4 @@ declare module "express-serve-static-core" {
     rawBody?: any; // Add rawBody to the Request type
   }
 }
+
