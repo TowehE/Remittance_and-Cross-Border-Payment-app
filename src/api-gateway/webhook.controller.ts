@@ -102,12 +102,7 @@ export const handle_paystack_webhook_event = async (req: RequestWithRawBody, res
       .createHmac("sha512", PAYSTACK_SECRET_KEY)
       .update(rawBody ?? '')
       .digest("hex");
-      console.log("Raw Body:", rawBody);
-      console.log("Paystack Webhook Secret:", PAYSTACK_SECRET_KEY);
-      console.log("Computed Hash:", hash);
-      console.log("Request Body:", req.body);
-      console.log("Request Headers:", req.headers);
-    
+  
     if (hash !== req.headers['x-paystack-signature']) {
       console.error('Invalid Paystack webhook signature');
       return res.status(400).json({ error: 'Invalid signature' });
@@ -115,6 +110,7 @@ export const handle_paystack_webhook_event = async (req: RequestWithRawBody, res
 
     const event = req.body;
     console.log(`Received Paystack webhook event: ${event.event}`);
+    console.log("this is event", event)
 
     // Handle different Paystack events
     switch (event.event) {
