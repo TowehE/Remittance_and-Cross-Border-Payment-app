@@ -6,6 +6,7 @@ import crypto from 'crypto'
 import { PrismaClient } from '@prisma/client';
 import { PAYSTACK_WEBHOOK_SECRET, PAYSTACK_SECRET_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '../shared/config';
 import { process_successful_payment } from '../payment-service/payment.service';
+import { log } from "console";
 
 export interface RequestWithRawBody extends ExpressRequest {
   rawBody?: any;
@@ -20,19 +21,17 @@ const stripe = new Stripe(STRIPE_SECRET_KEY, {
   // Handles Stripe webhook events on webhook endpoint
  export const handle_stripe_webhook_event = async (req: RequestWithRawBody, res: Response) => {
    let event: Stripe.Event;
- 
+  console
    const signature = req.headers['stripe-signature'] as string;
-  //  const reqWithRaw = req as RequestWithRawBody;
-  // Access the raw body
   const rawBody = req.rawBody;
 
- 
-   if (!signature || !rawBody || !STRIPE_WEBHOOK_SECRET) {
-     return res.status(400).json({ error: 'Missing signature, raw body, or secret' });
-   }
    console.log("signature", signature)
    console.log("this is stripe webhook secret", STRIPE_WEBHOOK_SECRET)
    console.log("this is your req body", rawBody)
+   if (!signature || !rawBody || !STRIPE_WEBHOOK_SECRET) {
+     return res.status(400).json({ error: 'Missing signature, raw body, or secret' });
+   }
+ 
    try {
      event = stripe.webhooks.constructEvent(
        rawBody,
@@ -91,12 +90,6 @@ const stripe = new Stripe(STRIPE_SECRET_KEY, {
 export const handle_paystack_webhook_event = async (req: RequestWithRawBody, res: Response) => {
   try {
     const rawBody = req.rawBody;
-    // Verify the Paystack webhook signature
-    // const hash = crypto
-    //   .createHmac('sha512', PAYSTACK_WEBHOOK_SECRET)
-    //   .update(JSON.stringify(req.body))
-    //   .digest('hex');
-
 
     const hash = crypto
       .createHmac("sha512", PAYSTACK_SECRET_KEY)
@@ -109,9 +102,7 @@ export const handle_paystack_webhook_event = async (req: RequestWithRawBody, res
     }
 
     const event = JSON.parse(rawBody.toString());
-    console.log(`Received Paystack webhook event: ${event.event}`);
-    console.log("this is event", event)
-
+ 
     // Handle different Paystack events
     switch (event.event) {
       case 'charge.success': {
