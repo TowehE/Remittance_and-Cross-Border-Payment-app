@@ -14,75 +14,139 @@ export interface RequestWithRawBody extends ExpressRequest {
 
 
 const prisma = new PrismaClient();
-const stripe = new Stripe(STRIPE_SECRET_KEY, {
-    apiVersion: '2025-03-31.basil'
-  });
-  
-  // Handles Stripe webhook events on webhook endpoint
- export const handle_stripe_webhook_event = async (req: RequestWithRawBody, res: Response) => {
-   let event: Stripe.Event;
-  console
-   const signature = req.headers['stripe-signature'] as string;
-  const rawBody = req.rawBody;
 
-   console.log("signature", signature)
-   console.log("this is stripe webhook secret", STRIPE_WEBHOOK_SECRET)
-   console.log("this is your req body", rawBody)
-   if (!signature || !rawBody || !STRIPE_WEBHOOK_SECRET) {
-     return res.status(400).json({ error: 'Missing signature, raw body, or secret' });
-   }
- 
-   try {
-     event = stripe.webhooks.constructEvent(
-       rawBody,
-       signature,
-       STRIPE_WEBHOOK_SECRET
-     );
-  
+const stripe = new Stripe(STRIPE_SECRET_KEY)
 
-   } catch (err) {
-     console.error('Stripe signature verification failed:', err);
-     return res.status(400).json({ error: 'Invalid Stripe signature' });
-   }
- try{
-   switch (event.type) {
-     case 'checkout.session.completed': {
-       const session = event.data.object as Stripe.Checkout.Session;
-       const transactionId = session.metadata?.transactionId;
-       if (transactionId) await process_successful_payment({ id: transactionId });
-       break;
-     }
- 
-     case 'payment_intent.succeeded': {
-       const intent = event.data.object as Stripe.PaymentIntent;
-       const transactionId = intent.metadata?.transactionId;
-       if (transactionId) await process_successful_payment({ id: transactionId });
-       break;
-     }
- 
-     case 'payment_intent.payment_failed': {
-       const intent = event.data.object as Stripe.PaymentIntent;
-       const transactionId = intent.metadata?.transactionId;
-       if (transactionId) {
-        await prisma.transaction.updateMany({
-           where: { id: transactionId },
-           data: { status: 'FAILED' },
-         });
-       }
-       break;
-     }
- 
-     default:
+export const handle_stripe_webhook_event = async (req: Request, res: Response) => {
+  const sig = req.headers['stripe-signature'];
 
-       console.log('Unhandled event type:', event.type);
-   } } catch (error) {
-    console.error('Error handling Stripe event:', error);
-    // Respond 500, or 200 to avoid webhook retries if you prefer
-    return res.status(500).json({ error: 'Webhook handler error' });
+  if (!sig || !STRIPE_WEBHOOK_SECRET) {
+    console.error("Missing Stripe signature or webhook secret.");
+    return res.status(400).send(`Missing signature or secret.`);
   }
+
+  let event: Stripe.Event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error("Webhook signature verification failed.", err);
+    return res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : 'Invalid signature'}`);
+  }
+
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const transactionId = session.metadata?.transactionId;
+        if (transactionId) {
+          await process_successful_payment({ id: transactionId });
+        }
+        break;
+      }
+
+      case 'payment_intent.succeeded': {
+        const intent = event.data.object as Stripe.PaymentIntent;
+        const transactionId = intent.metadata?.transactionId;
+        if (transactionId) {
+          await process_successful_payment({ id: transactionId });
+        }
+        break;
+      }
+
+      case 'payment_intent.payment_failed': {
+        const intent = event.data.object as Stripe.PaymentIntent;
+        const transactionId = intent.metadata?.transactionId;
+        if (transactionId) {
+          await prisma.transaction.updateMany({
+            where: { id: transactionId },
+            data: { status: 'FAILED' },
+          });
+        }
+        break;
+      }
+
+      default:
+        console.log(`Unhandled event type ${event.type}`);
+    }
+
+    return res.status(200).json({ received: true });
+
+  } catch (error) {
+    console.error('Error handling Stripe event:', error);
+    return res.status(500).send('Internal error while handling event');
+  }
+};
+
+// const stripe = new Stripe(STRIPE_SECRET_KEY, {
+//     apiVersion: '2025-03-31.basil'
+//   });
+  
+//   // Handles Stripe webhook events on webhook endpoint
+//  export const handle_stripe_webhook_event = async (req: RequestWithRawBody, res: Response) => {
+//    let event: Stripe.Event;
+//   console
+//    const signature = req.headers['stripe-signature'] as string;
+//   const rawBody = req.rawBody;
+
+//    console.log("signature", signature)
+//    console.log("this is stripe webhook secret", STRIPE_WEBHOOK_SECRET)
+//    console.log("this is your req body", rawBody)
+//    if (!signature || !rawBody || !STRIPE_WEBHOOK_SECRET) {
+//      return res.status(400).json({ error: 'Missing signature, raw body, or secret' });
+//    }
  
-   return res.status(200).json({ received: true });
- };
+//    try {
+//      event = stripe.webhooks.constructEvent(
+//        rawBody,
+//        signature,
+//        STRIPE_WEBHOOK_SECRET
+//      );
+  
+
+//    } catch (err) {
+//      console.error('Stripe signature verification failed:', err);
+//      return res.status(400).json({ error: 'Invalid Stripe signature' });
+//    }
+//  try{
+//    switch (event.type) {
+//      case 'checkout.session.completed': {
+//        const session = event.data.object as Stripe.Checkout.Session;
+//        const transactionId = session.metadata?.transactionId;
+//        if (transactionId) await process_successful_payment({ id: transactionId });
+//        break;
+//      }
+ 
+//      case 'payment_intent.succeeded': {
+//        const intent = event.data.object as Stripe.PaymentIntent;
+//        const transactionId = intent.metadata?.transactionId;
+//        if (transactionId) await process_successful_payment({ id: transactionId });
+//        break;
+//      }
+ 
+//      case 'payment_intent.payment_failed': {
+//        const intent = event.data.object as Stripe.PaymentIntent;
+//        const transactionId = intent.metadata?.transactionId;
+//        if (transactionId) {
+//         await prisma.transaction.updateMany({
+//            where: { id: transactionId },
+//            data: { status: 'FAILED' },
+//          });
+//        }
+//        break;
+//      }
+ 
+//      default:
+
+//        console.log('Unhandled event type:', event.type);
+//    } } catch (error) {
+//     console.error('Error handling Stripe event:', error);
+//     // Respond 500, or 200 to avoid webhook retries if you prefer
+//     return res.status(500).json({ error: 'Webhook handler error' });
+//   }
+ 
+//    return res.status(200).json({ received: true });
+//  };
 
 
 // Handles Paystack webhook events

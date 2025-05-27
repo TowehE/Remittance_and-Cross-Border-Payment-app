@@ -6,9 +6,9 @@ import user_routes from './user-service/user.routes'
 import rate_routes from './rate-service/rate_routes'
 import { errorHandler } from './shared/middleware/error_middleware'
 import payment_routes from './payment-service/payment_routes'
-import bodyParser from 'body-parser';
 import webhook_routes from './payment-service/wehbook_route'
 import { Request as ExpressRequest } from "express";
+
 
 const app = express()
 
@@ -16,6 +16,9 @@ declare module 'express-serve-static-core' {
   interface Request {
     rawBody?: any;
   }
+}
+interface RequestWithRawBody extends ExpressRequest {
+  rawBody?: Buffer;
 }
 
 
@@ -38,19 +41,23 @@ app.use('/api/v1/webhook/paystack', (req: Request, res: Response, next: NextFunc
 
 
 
+app.use('/api/v1/webhook/stripe', express.raw({ type: 'application/json' }));
 
 // Middleware to parse raw body for the Stripe webhook
-app.use('/api/v1/webhook/stripe', express.raw({ type: 'application/json' })); // Correctly set content type
-// Extend the Request interface to include rawBody
-interface RequestWithRawBody extends ExpressRequest {
-  rawBody?: any;
-}
+// app.use('/api/v1/webhook/stripe', express.raw({ type: 'application/json' })); 
+// // Extend the Request interface to include rawBody
+// interface RequestWithRawBody extends ExpressRequest {
+//   rawBody?: any;
+// }
 
 // Middleware to add raw body to req object
 app.use('/api/v1/webhook/stripe', (req: RequestWithRawBody, res: Response, next: NextFunction) => {
     if (req.headers["stripe-signature"]) {
         req.rawBody = req.body; // Use raw body for signature verification
+           console.log("Stripe raw body is buffer:", Buffer.isBuffer(req.rawBody)); 
     }
+    console.log("Is rawBody a buffer:", Buffer.isBuffer(req.rawBody)); // should be true
+
     next();
 });
 
