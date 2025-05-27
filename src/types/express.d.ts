@@ -4,7 +4,7 @@ import { Request } from 'express';
 declare global {
   namespace Express {
     interface Request {
-      rawBody?: Buffer | string;
+      rawBody?: any;
       user?: {
         user_id: string;
         email?: string;
