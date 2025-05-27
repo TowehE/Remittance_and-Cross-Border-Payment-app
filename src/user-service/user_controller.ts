@@ -78,3 +78,50 @@ export const update_user_profile = async (req: Request, res: Response, next: Nex
   }
 };
 
+
+
+export const get_all_users = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    // Call service function to get all users
+    const users = await user_service.get_all_users_admin();
+    if (!users || users.length === 0) {
+      res.status(200).json({
+        status: 'success',
+        data: []
+      })
+    }
+
+    // Send success response
+    res.status(200).json({
+      status: 'success',
+      data: users
+    });
+  } catch (error) {
+    // Pass the error to the next middleware (error handler)
+    next(error);
+  }
+};
+
+
+export const admin_fund_user_wallet = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+
+    const { userId, amount } = req.body;
+
+    if (!userId || !amount || amount <= 0) {
+      throw new customError('User ID and a valid amount are required', 400);
+    }
+
+    // Call service function to fund user wallet
+    const updated_user = await user_service.fund_user_wallet(userId, amount);
+
+    // Send success response
+    res.status(200).json({
+      status: 'success',
+      data: updated_user
+    });
+  } catch (error) {
+    // Pass the error to the next middleware (error handler)
+    next(error);
+  }
+}

@@ -4,7 +4,7 @@ import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import crypto from 'crypto'
 import { PrismaClient } from '@prisma/client';
-import { PAYSTACK_WEBHOOK_SECRET, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '../shared/config';
+import { PAYSTACK_WEBHOOK_SECRET, PAYSTACK_SECRET_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '../shared/config';
 import { process_successful_payment } from '../payment-service/payment.service';
 
 export interface RequestWithRawBody extends ExpressRequest {
@@ -88,13 +88,18 @@ const stripe = new Stripe(STRIPE_SECRET_KEY, {
 
 // Handles Paystack webhook events
 // Handles Paystack webhook events
-export const handle_paystack_webhook_event = async (req: Request, res: Response) => {
+export const handle_paystack_webhook_event = async (req: RequestWithRawBody, res: Response) => {
   try {
+    const rawBody = req.rawBody;
     // Verify the Paystack webhook signature
+    // const hash = crypto
+    //   .createHmac('sha512', PAYSTACK_WEBHOOK_SECRET)
+    //   .update(JSON.stringify(req.body))
+    //   .digest('hex');
     const hash = crypto
-      .createHmac('sha512', PAYSTACK_WEBHOOK_SECRET)
-      .update(JSON.stringify(req.body))
-      .digest('hex');
+      .createHmac("sha512", PAYSTACK_SECRET_KEY)
+      .update(rawBody ?? '')
+      .digest("hex");
     
     if (hash !== req.headers['x-paystack-signature']) {
       console.error('Invalid Paystack webhook signature');

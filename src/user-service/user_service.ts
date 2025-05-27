@@ -204,4 +204,48 @@ export const update_user_profile = async (userId: string, update_user_data: { pa
   };
   
 
+export const get_all_users_admin = async () => {
+  const users = await prisma.user.findMany({
+    include: {
+      accounts: true
+    }
+  });
 
+  return users.map(user => {
+    const { password, ...user_without_password } = user;
+    return user_without_password;
+  });
+};
+
+
+export const fund_user_wallet = async (userId: string, amount: number) => {
+  if (!userId) {
+    throw new customError("User ID is required", 400);
+  }
+  if (amount <= 0) {
+    throw new customError("Amount must be greater than zero", 400);
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { accounts: true }
+  });
+
+  if (!user) {
+    throw new customError("User not found", 404);
+  }
+
+  // Assuming the first account is the default one
+  const defaultAccount = user.accounts[0];
+  
+  if (!defaultAccount) {
+    throw new customError("No account found for this user", 404);
+  }
+
+  const updatedAccount = await prisma.account.update({
+    where: { id: defaultAccount.id },
+    data: { balance: { increment: amount } }
+  });
+
+  return updatedAccount;
+};
