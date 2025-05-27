@@ -7,6 +7,7 @@ import { get_exchange_rate } from '../rate-service/rate.controller';
 import { get_minimum_transfer_amount } from '../utilis';
 import * as rate_service from '../rate-service/rate.service'
 import Decimal from 'decimal.js';
+import { Request } from 'express';
 
 const prisma = new PrismaClient()
 
@@ -29,7 +30,7 @@ export interface intiate_payment_data{
     // callbackUrl?: string;
 }
 
-export const intiate_remittance_payment = async (payment_data : intiate_payment_data) =>{
+export const intiate_remittance_payment = async (payment_data : intiate_payment_data, req: Request) =>{
     
     const sender = await prisma.user.findUnique({
         where: { 
@@ -223,7 +224,7 @@ else if( senderAccount.provider.toLowerCase() === 'stripe'){
     // cancelUrl: `${APP_BASE_URL}/payment-cancel`
     // successUrl: payment_data.callbackUrl,
     // cancelUrl: `${payment_data.callbackUrl}?canceled=true`
-})
+}, req)
 
     
     // / Update transaction with payment reference

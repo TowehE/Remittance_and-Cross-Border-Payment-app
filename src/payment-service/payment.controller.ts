@@ -29,7 +29,7 @@ class PaymentController {
         targetCurrency,
         receiverId,
         receiverAccountNumber
-      });
+      }, req);
       
     
       res.status(200).json({
