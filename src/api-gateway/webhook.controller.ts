@@ -34,6 +34,9 @@ export const handle_stripe_webhook_event = async (req: Request, res: Response) =
     return res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : 'Invalid signature'}`);
   }
 
+    console.log("Webhook event received:", event.type);
+
+
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
