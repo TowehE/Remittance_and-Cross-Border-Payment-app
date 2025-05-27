@@ -96,6 +96,8 @@ export const handle_paystack_webhook_event = async (req: RequestWithRawBody, res
     //   .createHmac('sha512', PAYSTACK_WEBHOOK_SECRET)
     //   .update(JSON.stringify(req.body))
     //   .digest('hex');
+
+
     const hash = crypto
       .createHmac("sha512", PAYSTACK_SECRET_KEY)
       .update(rawBody ?? '')

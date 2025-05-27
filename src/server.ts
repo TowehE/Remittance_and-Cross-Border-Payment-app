@@ -20,6 +20,8 @@ app.use(cors());
 
 
 
+
+
 // Middleware to parse raw body for the Stripe webhook
 app.use('/api/v1/webhook/stripe', express.raw({ type: 'application/json' })); // Correctly set content type
 // Extend the Request interface to include rawBody
@@ -34,6 +36,9 @@ app.use('/api/v1/webhook/stripe', (req: RequestWithRawBody, res: Response, next:
     }
     next();
 });
+
+
+
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }))

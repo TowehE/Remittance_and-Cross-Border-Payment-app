@@ -1,6 +1,5 @@
 import express from 'express';
 import { Payment_controllerr } from './payment.controller';
-import { rawBodyMiddleware } from '../shared/middleware/raw_body_middleware';
 
 const router = express.Router();
 
