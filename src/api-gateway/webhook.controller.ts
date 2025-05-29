@@ -30,7 +30,9 @@ const stripe = new Stripe(STRIPE_SECRET_KEY)
   
   const signature = req.headers['stripe-signature'] as string;
   const rawBody = req.rawBody;
-
+console.log("signature:",  signature)
+console.log("raw body", rawBody)
+console.log("stripe webhook secret:", STRIPE_SECRET_KEY)
   console.log("Stripe signature:", signature ? "Present" : "Missing");
   console.log("Stripe webhook secret:", STRIPE_WEBHOOK_SECRET ? "Present" : "Missing");
   console.log("Stripe raw body is buffer:", Buffer.isBuffer(rawBody));
