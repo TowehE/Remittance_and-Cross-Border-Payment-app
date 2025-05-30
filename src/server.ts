@@ -6,7 +6,7 @@ import user_routes from './user/user.routes'
 import rate_routes from './rate/rate_routes'
 import { errorHandler } from './shared/middleware/error_middleware'
 import payment_routes from './payment/payment_routes'
-import webhook_routes from '../src/api-gateway/wehbook_route'
+import webhook_routes from './api-gateway/wehbook_route';
 import { Request as ExpressRequest } from "express";
 
 
