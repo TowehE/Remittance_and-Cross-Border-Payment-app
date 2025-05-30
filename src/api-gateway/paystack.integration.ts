@@ -59,8 +59,13 @@ export const initiate_payment = async (payment_data : initiate_payment_data) => 
 export const verify_payment = async (verify_data : verify_payment_data) => {
     try {
     const response = await paystack_API.get(`/transaction/verify/${verify_data.reference}`)
-    return response.data.data
+    const data= response.data.data;
         
+    return {
+      reference: data.reference ?? null,
+      status: data.status ?? null,
+      authorization_url: data.authorization_url ?? null,
+    };
         
     } catch (error) {
         if (axios.isAxiosError(error)) {

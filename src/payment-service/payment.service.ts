@@ -215,28 +215,31 @@ else if( senderAccount.provider.toLowerCase() === 'stripe'){
     customerId: senderAccount.externalId,
     email: sender.email,
     name: `${sender.firstName} ${sender.lastName}`,
-    // phone: sender.phone,
     amount: payment_data.amount,
     currency: payment_data.currency,
     metadata,
-    description: `Remittance from ${sender.email} to ${receiver.email}`,
-    // successUrl: `${APP_BASE_URL}/payment-success` ,
-    // cancelUrl: `${APP_BASE_URL}/payment-cancel`
-    // successUrl: payment_data.callbackUrl,
-    // cancelUrl: `${payment_data.callbackUrl}?canceled=true`
+    description: `Remittance from ${sender.email} to ${receiver.email}`
 }, req)
 
     
     // / Update transaction with payment reference
     await prisma.transaction.update({
         where: { id: transaction.id },
-        data: { paymentReference: payment_initiation.id }
+        data: {
+         paymentReference: payment_initiation.id,
+        StripecheckoutSessionId: payment_initiation.id,
+      StripepaymentIntentId: payment_initiation.payment_intent,
+       paystackReference: payment_initiation.reference ?? null,
+         authorizationUrl: payment_initiation.authorization_url ?? null,
+
+         }
     });
 
     return {
         transaction,
         paymentUrl: payment_initiation.authorization_url,
-        reference: payment_initiation.id
+        reference: payment_initiation.id,
+        
     };
 } else {
     throw new customError('Unsupported payment provider', 400);
@@ -271,7 +274,7 @@ export const process_successful_payment = async (session: { id: string }) => {
         });
 
         // Find sender's and receiver's accounts based on the transaction currencies
-        // Add explicit type annotations to fix the TS7006 errors
+
         const senderAccount = transaction.sender?.accounts.find(
             (account: AccountType) => account.currency === transaction.sourceCurrency
         );

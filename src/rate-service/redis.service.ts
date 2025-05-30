@@ -1,6 +1,7 @@
 // src/rate-service/redis.service.ts
 import { createClient } from 'redis';
 import { REDIS_URL } from '../shared/config';
+import Bull from "bull"
 
 export const redisClient = createClient({ url: REDIS_URL });
 
@@ -15,9 +16,24 @@ export const redisClient = createClient({ url: REDIS_URL });
 })();
 
 
+
+
 // Handle Redis errors
 redisClient.on('error', (err) => {
   console.error('Redis Client Error', err);
+});
+
+
+export const transaction_queue = new Bull('transaction_queue', REDIS_URL)
+
+// Monitor successful job completion
+transaction_queue.on('completed', (job) => {
+  console.log(`Job ${job.id} completed successfully for transaction ${job.data.transactionId}`);
+});
+
+// Monitor job failures
+transaction_queue.on('failed', (job, err) => {
+  console.error(`Job ${job.id} failed for transaction ${job.data.transactionId}. Error: ${err.message}`);
 });
 
 
@@ -39,3 +55,5 @@ export const cache_rate = async (sourceCurrency: string, targetCurrency: string,
 export const clear_cache = async () => {
   await redisClient.flushAll();
 };
+
+

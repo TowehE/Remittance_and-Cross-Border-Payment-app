@@ -134,12 +134,24 @@ export const create_payment_session = async (params: create_payment_intent_data,
       console.error('Stripe session URL is undefined', session);
       throw new customError('Failed to get payment URL from Stripe', 500);
     }
-    return {
-      id: session.id,
-      authorization_url: session.url, // Make this match Paystack's naming
-      status: session.status,
-      reference: session.id // Use the session ID as reference
-    };
+
+    const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
+    expand: ['payment_intent'],
+  });
+
+    const paymentIntentId = 
+  typeof fullSession.payment_intent === 'string' 
+    ? fullSession.payment_intent 
+    : fullSession.payment_intent?.id ?? null;
+
+return {
+  id: fullSession.id,
+  authorization_url: fullSession.url ?? '',
+  status: fullSession.status,
+  reference: fullSession.id,
+  payment_intent: paymentIntentId,
+};
+
   } catch (error) {
     console.error('Stripe payment session error:', error);
     throw new customError('Failed to create payment session with Stripe', 500);
