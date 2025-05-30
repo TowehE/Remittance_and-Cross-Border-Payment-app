@@ -1,0 +1,132 @@
+import { PrismaClient } from '@prisma/client';
+import { v4 as uuidv4 } from 'uuid';
+import { Request } from 'express';
+import { customError } from '../shared/middleware/error_middleware';
+import * as paystack_service from '../api-gateway/paystack.integration';
+import * as stripe_service from '../api-gateway/stripe_integration';
+import { update_transaction } from './payment.crud';
+import { validate_full_remittance_data } from './payment.validation';
+
+const prisma = new PrismaClient();
+// Define a simple Account interface to use for type annotations
+interface AccountType {
+    id: string;
+    currency: string;
+     balance: number;
+  provider: string;
+  externalId?: string;
+    
+   
+}
+
+export interface intiate_payment_data {
+  userId: string;
+  amount: number;
+  currency: string;
+  targetCurrency: string;
+  receiverId?: string;
+  receiverAccountNumber?: string;
+}
+
+export const intiate_remittance_payment = async (
+  payment_data: intiate_payment_data,
+  req: Request
+) => {
+  const {
+    sender,
+    receiver,
+    senderAccount,
+    receiverAccount,
+    exchangeRate,
+    fees,
+    targetAmount
+  } = await validate_full_remittance_data(payment_data);
+
+  const target_amount_number = targetAmount.toNumber();
+  const fees_number = fees.toNumber();
+
+  const transaction = await prisma.transaction.create({
+    data: {
+      sourceAmount: payment_data.amount,
+      targetAmount: target_amount_number,
+      sourceCurrency: payment_data.currency,
+      targetCurrency: payment_data.targetCurrency,
+      exchangeRate: exchangeRate.toNumber(),
+      fees: fees_number,
+      status: 'PENDING',
+      paymentMethod:
+        senderAccount.provider.toLowerCase() === 'paystack' ? 'PAYSTACK' : 'STRIPE',
+      sender: {
+        connect: { id: payment_data.userId }
+      },
+      receiver: {
+        connect: { id: receiver.id }
+      }
+    }
+  });
+
+  const reference = `RM-${uuidv4()}`;
+  const metadata = {
+    transactionId: transaction.id,
+    userId: payment_data.userId,
+    receiverId: payment_data.receiverId || receiver.id
+  };
+
+  let payment_initiation;
+
+  if (senderAccount.provider.toLowerCase() === 'paystack') {
+    payment_initiation = await paystack_service.initiate_payment({
+      email: sender.email,
+      name: `${sender.firstName} ${sender.lastName}`,
+      phoneNumber: sender.phoneNumber ?? undefined,
+      amount: payment_data.amount,
+      currency: payment_data.currency,
+      reference,
+      metadata
+    });
+
+    await update_transaction(transaction.id, {
+      paymentReference: reference
+    });
+
+    return {
+      transaction,
+      paymentUrl: payment_initiation.authorization_url,
+      reference
+    };
+  }
+
+  if (senderAccount.provider.toLowerCase() === 'stripe') {
+    if (!senderAccount.externalId)
+      throw new customError('Stripe customer ID (externalId) not found for sender', 400);
+
+    payment_initiation = await stripe_service.create_payment_session(
+      {
+        customerId: senderAccount.externalId,
+        email: sender.email,
+        name: `${sender.firstName} ${sender.lastName}`,
+        amount: payment_data.amount,
+        currency: payment_data.currency,
+        metadata,
+        description: `Remittance from ${sender.email} to ${receiver.email}`
+      },
+      req
+    );
+
+    await update_transaction(transaction.id, {
+      paymentReference: payment_initiation.id,
+      StripecheckoutSessionId: payment_initiation.id,
+      StripepaymentIntentId: payment_initiation.payment_intent,
+      paystackReference: payment_initiation.reference ?? null,
+      authorizationUrl: payment_initiation.authorization_url ?? null
+    });
+
+    return {
+      transaction,
+      paymentUrl: payment_initiation.authorization_url,
+      reference: payment_initiation.id
+    };
+  }
+
+  throw new customError('Unsupported payment provider', 400);
+};

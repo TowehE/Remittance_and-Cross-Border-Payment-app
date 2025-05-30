@@ -8,16 +8,24 @@ import { get_minimum_transfer_amount } from '../utilis';
 import * as rate_service from '../rate-service/rate.service'
 import Decimal from 'decimal.js';
 import { Request } from 'express';
+import { create_account_transactions, create_transaction, find_transaction_by_Id, find_user_account_by_accountno, find_user_with_default_account, update_account_balance, update_transaction } from './payment.crud';
+import { validate_intiate_remittance_data } from './payment_middleware';
+
+
 
 const prisma = new PrismaClient()
 
 const APP_BASE_URL= process.env.APP_BASE_URL
 
-// Define a simple Account interface to use for type annotations
+// Define a  Account interface to use for type annotations
 interface AccountType {
     id: string;
     currency: string;
-    // Add other properties you might need, but at minimum what's used in the code
+     balance: number;
+  provider: string;
+  externalId?: string;
+    
+   
 }
 
 export interface intiate_payment_data{
@@ -26,334 +34,167 @@ export interface intiate_payment_data{
     currency: string;
     targetCurrency: string
     receiverId?: string;
-    receiverAccountNumber?: string;
-    // callbackUrl?: string;
+    receiver_account_number?: string;
+  
 }
+export const intiate_remittance_payment = async ( payment_data: intiate_payment_data, req: Request) => {
+  const {
+    sender,
+    receiver,
+    sender_account,
+    receiver_account,
+    exchangeRate,
+    fees,
+    targetAmount
+  } = await validate_intiate_remittance_data(payment_data);
 
-export const intiate_remittance_payment = async (payment_data : intiate_payment_data, req: Request) =>{
-    
-    const sender = await prisma.user.findUnique({
-        where: { 
-            id: payment_data.userId },
-        include:{
-            accounts: {
-                where:{ isDefault: true }
-            }
-        }
-    })
-    if (!sender || sender.accounts.length === 0) {
-        throw new customError('Sender account not found', 404);
-      }
-   // Find receiver by ID or account number
-   let receiver;
-   if (payment_data.receiverId) {
-       receiver = await prisma.user.findUnique({
-           where: { id: payment_data.receiverId },
-           include: {
-               accounts: {
-                   where: { isDefault: true }
-               }
-           }
-       });
-   } else if (payment_data.receiverAccountNumber) {
-       // Find user by account number
-       const receiverAccount = await prisma.account.findUnique({
-           where: { accountNumber: payment_data.receiverAccountNumber },
-           include: { user: true }
-       });
-       
-       if (receiverAccount) {
-           // Get the user's default account
-           const accounts = await prisma.account.findMany({
-               where: { 
-                   userId: receiverAccount.userId,
-                   isDefault: true 
-               }
-           });
-           
-           receiver = {
-               ...receiverAccount.user,
-               accounts: accounts
-           };
-       }
-   }
-   
-   if (!receiver || receiver.accounts.length === 0) {
-       throw new customError('Receiver account not found', 404);
-   }
+  const target_amount_number = targetAmount.toNumber();
+  const fees_number = fees.toNumber();
 
-   
- // Prevent sending to self (by user ID)
- if (sender.id === receiver.id) {
-    throw new customError('You cannot send money to yourself', 400);
-}
-
-const senderAccount = sender.accounts[0];
-const receiverAccount = receiver.accounts[0];
-
-// Validate sender's currency matches the source currency
-if (senderAccount.currency !== payment_data.currency) {
-    throw new customError(`You can only send ${senderAccount.currency} from this account`, 400);
-}
-
-// Validate receiver's currency is NGN
-// if (receiverAccount.currency !== 'NGN') {
-//     throw new customError('The recipient must have an NGN account for receiving transfers', 400);
-// }
-
-// // Validate target currency is also NGN
-// if (payment_data.targetCurrency !== 'NGN') {
-//     throw new customError('Target currency must be NGN for all transfers', 400);
-// }
-
-  const balance = new Decimal(senderAccount.balance);
-if (balance.lessThan(payment_data.amount)) {
-  throw new customError('Insufficient funds', 400);
-}
-
-// Get the exchange rate
-const exchange_rate = await rate_service.get_exchange_rate(
-    payment_data.currency,
-    payment_data.targetCurrency
-);
-
-console.log(exchange_rate)
-if (!exchange_rate) {
-    throw new customError('Exchange rate not available for the selected currencies', 400);
-  }
-
-// Calculate with Decimal for precision
-const amount = new Decimal(payment_data.amount);
-const fees_percentage = new Decimal(0.015);
-const exchange_rate_value = new Decimal(exchange_rate.rate);
-
-// Calculate fees
-const fees = amount.mul(fees_percentage);
-
-// Calculate target amount
-const target_amount = amount.minus(fees).mul(exchange_rate_value);
-
-// Convert Decimal objects to numbers before using with Prisma
-const target_amount_number = target_amount.toNumber();
-const fees_number = fees.toNumber();
-
-// Check minimum based on currency
-const minimum_amount = get_minimum_transfer_amount(payment_data.targetCurrency)
-
-
-const minimum_amount_decimal = new Decimal(minimum_amount);
-if (target_amount.lessThan(minimum_amount_decimal)) { 
-    throw new customError('Target amount is too small after fees and exchange rate. Please send a higher amount.', 400);
-}
-
-
-//   /Create transaction with proper relations using number values
   const transaction = await prisma.transaction.create({
     data: {
       sourceAmount: payment_data.amount,
-      targetAmount: target_amount_number, 
+      targetAmount: target_amount_number,
       sourceCurrency: payment_data.currency,
       targetCurrency: payment_data.targetCurrency,
-      exchangeRate: exchange_rate.rate,
-      fees: fees_number, 
+      exchangeRate: exchangeRate.toNumber(),
+      fees: fees_number,
       status: 'PENDING',
-      paymentMethod: senderAccount.provider.toLowerCase() === 'paystack' 
-          ? 'PAYSTACK' 
-          : 'STRIPE',
+      paymentMethod:
+        sender_account.provider.toLowerCase() === 'paystack' ? 'PAYSTACK' : 'STRIPE',
       sender: {
-          connect: { id: payment_data.userId }
+        connect: { id: payment_data.userId }
       },
       receiver: {
-          connect: { id: receiver.id }
+        connect: { id: receiver.id }
       }
     }
   });
 
-
-// Generate a unique reference for the payment
-const reference = `RM-${uuidv4()}`
-
- // Store metadata about the transaction
- const metadata = {
+  const reference = `RM-${uuidv4()}`;
+  const metadata = {
     transactionId: transaction.id,
     userId: payment_data.userId,
-    receiverId: payment_data.receiverId  || receiver.id,
+    receiverId: payment_data.receiverId || receiver.id
   };
-  
-  let payment_initiation
 
-// initiate payment based on the sender payment provider
-if(senderAccount.provider.toLowerCase() === 'paystack'){
+  let payment_initiation;
+
+  if (sender_account.provider.toLowerCase() === 'paystack') {
     payment_initiation = await paystack_service.initiate_payment({
-        email: sender.email,
-        name: `${sender.firstName} ${sender.lastName}`,
-        phoneNumber: sender.phoneNumber ?? undefined,
-        amount: payment_data.amount,
-        currency: payment_data.currency,
-        reference,
-        metadata
-    })
+      email: sender.email,
+      name: `${sender.firstName} ${sender.lastName}`,
+      phoneNumber: sender.phoneNumber ?? undefined,
+      amount: payment_data.amount,
+      currency: payment_data.currency,
+      reference,
+      metadata
+    });
 
-// update the transaction using the payment reference
-await prisma.transaction.update({
-    where: { id:transaction.id },
-    data: { paymentReference: reference}
-})
-
-return{
-    transaction,
-    paymentUrl:  payment_initiation.authorization_url,
-    reference
-}
-}
-else if( senderAccount.provider.toLowerCase() === 'stripe'){
-    if (!senderAccount.externalId) {
-        throw new customError('Stripe customer ID (externalId) not found for sender', 400);
-      }
-
-    payment_initiation = await stripe_service.create_payment_session({
-    customerId: senderAccount.externalId,
-    email: sender.email,
-    name: `${sender.firstName} ${sender.lastName}`,
-    amount: payment_data.amount,
-    currency: payment_data.currency,
-    metadata,
-    description: `Remittance from ${sender.email} to ${receiver.email}`
-}, req)
-
-    
-    // / Update transaction with payment reference
-    await prisma.transaction.update({
-        where: { id: transaction.id },
-        data: {
-         paymentReference: payment_initiation.id,
-        StripecheckoutSessionId: payment_initiation.id,
-      StripepaymentIntentId: payment_initiation.payment_intent,
-       paystackReference: payment_initiation.reference ?? null,
-         authorizationUrl: payment_initiation.authorization_url ?? null,
-
-         }
+    await update_transaction(transaction.id, {
+      paymentReference: reference
     });
 
     return {
-        transaction,
-        paymentUrl: payment_initiation.authorization_url,
-        reference: payment_initiation.id,
-        
+      transaction,
+      paymentUrl: payment_initiation.authorization_url,
+      reference
     };
-} else {
-    throw new customError('Unsupported payment provider', 400);
-}
+  }
+
+  if (sender_account.provider.toLowerCase() === 'stripe') {
+    if (!sender_account.externalId)
+      throw new customError('Stripe customer ID (externalId) not found for sender', 400);
+
+    payment_initiation = await stripe_service.create_payment_session(
+      {
+        customerId: sender_account.externalId,
+        email: sender.email,
+        name: `${sender.firstName} ${sender.lastName}`,
+        amount: payment_data.amount,
+        currency: payment_data.currency,
+        metadata,
+        description: `Remittance from ${sender.email} to ${receiver.email}`
+      },
+      req
+    );
+
+    await update_transaction(transaction.id, {
+      paymentReference: payment_initiation.id,
+      StripecheckoutSessionId: payment_initiation.id,
+      StripepaymentIntentId: payment_initiation.payment_intent,
+      paystackReference: payment_initiation.reference ?? null,
+      authorizationUrl: payment_initiation.authorization_url ?? null
+    });
+
+    return {
+      transaction,
+      paymentUrl: payment_initiation.authorization_url,
+      reference: payment_initiation.id
+    };
+  }
+
+  throw new customError('Unsupported payment provider', 400);
 };
+
+
 
 export const process_successful_payment = async (session: { id: string }) => {
     try {
-        // Fetch transaction along with sender and receiver details
-        const transaction = await prisma.transaction.findUnique({
-            where: { id: session.id },
-            include: {
-                sender: { include: { accounts: true } },
-                receiver: { include: { accounts: true } }
-            }
-        });
+      const transaction = await find_transaction_by_Id(session.id);
+    if (!transaction) {
+      console.error('Transaction not found for payment:', session.id);
+      return;
+    }
+    if (transaction.status === 'COMPLETED') {
+      console.log(`Transaction ${transaction.id} already processed. Skipping.`);
+      return;
+    }
 
-        if (!transaction) {
-            console.error('Transaction not found for payment:', session.id);
-            return;
-        }
-        if (transaction.status === 'COMPLETED') {
-            console.log(`Transaction ${transaction.id} already processed. Skipping.`);
-            return;
-        }
+    await update_transaction(transaction.id, { status: 'COMPLETED' });
 
+   const sender_account = (transaction.sender?.accounts as AccountType[]).find((a) => a.currency === transaction.sourceCurrency
+);
 
-        // Update transaction status to 'COMPLETED'
-        await prisma.transaction.update({
-            where: { id: transaction.id },
-            data: { status: 'COMPLETED' }
-        });
+const receiver_account = (transaction.receiver?.accounts as AccountType[]).find((a) => a.currency === transaction.targetCurrency
+);
 
-        // Find sender's and receiver's accounts based on the transaction currencies
+    if (!sender_account || !receiver_account) {
+      console.error('Accounts not found for transaction:', transaction.id);
+      return;
+    }
 
-        const senderAccount = transaction.sender?.accounts.find(
-            (account: AccountType) => account.currency === transaction.sourceCurrency
-        );
-        
-        const receiverAccount = transaction.receiver?.accounts.find(
-            (account: AccountType) => account.currency === transaction.targetCurrency
-        );
-        
-        if (!senderAccount || !receiverAccount) {
-            console.error('Accounts not found for transaction:', transaction.id);
-            return;
-        }
+    const sourceAmount = new Decimal(transaction.sourceAmount);
+    const targetAmount = new Decimal(transaction.targetAmount);
 
+    const newSenderBalance = new Decimal(sender_account.balance).minus(sourceAmount);
+    const newReceiverBalance = new Decimal(receiver_account.balance).plus(targetAmount);
 
-        // Use Decimal for precise calculations
-        const sourceAmount = new Decimal(transaction.sourceAmount);
-        const targetAmount = new Decimal(transaction.targetAmount);
-        
-        // Get current balances
-        const senderBalance = new Decimal(senderAccount.balance);
-        const receiverBalance = new Decimal(receiverAccount.balance);
-        
-        // Calculate new balances
-        const newSenderBalance = senderBalance.minus(sourceAmount);
-        const newReceiverBalance = receiverBalance.plus(targetAmount);
+    await update_account_balance(sender_account.id, parseFloat(newSenderBalance.toFixed(2)));
+    await update_account_balance(receiver_account.id, parseFloat(newReceiverBalance.toFixed(2)));
 
-        // Format to 2 decimal places and convert back to number
-        const formattedSenderBalance = parseFloat(newSenderBalance.toFixed(2));
-        const formattedReceiverBalance = parseFloat(newReceiverBalance.toFixed(2));
+    await create_account_transactions([
+      {
+        accountId: sender_account.id,
+        amount: -parseFloat(sourceAmount.toFixed(2)),
+        currency: transaction.sourceCurrency,
+        type: 'DEBIT',
+        reference: transaction.paymentReference,
+        description: `Remittance to ${transaction.receiver.email}`
+      },
+      {
+        accountId: receiver_account.id,
+        amount: parseFloat(targetAmount.toFixed(2)),
+        currency: transaction.targetCurrency,
+        type: 'CREDIT',
+        reference: transaction.paymentReference,
+        description: `Remittance from ${transaction.sender.email}`
+      }
+    ]);
 
-
-        
-        // Update sender's balance with exact value instead of decrementing
-        await prisma.account.update({
-            where: { id: senderAccount.id },
-            data: { balance: formattedSenderBalance }
-        });
-
-        // Update receiver's balance with exact value instead of incrementing
-        await prisma.account.update({
-            where: { id: receiverAccount.id },
-            data: { balance: formattedReceiverBalance }
-        });
-
-
-
-
-        // Create account transactions for debit and credit
-        await prisma.$transaction([
-            prisma.accountTransaction.create({
-                data: {
-                    accountId: senderAccount.id,
-                    amount: -parseFloat(sourceAmount.toFixed(2)),
-                    currency: transaction.sourceCurrency,
-                    type: 'DEBIT',
-                    reference: transaction.paymentReference,
-                    description: `Remittance to ${transaction.receiver.email}`
-                }
-            }),
-            prisma.accountTransaction.create({
-                data: {
-                    accountId: receiverAccount.id,
-                    amount: parseFloat(targetAmount.toFixed(2)),
-                    currency: transaction.targetCurrency,
-                    type: 'CREDIT',
-                    reference: transaction.paymentReference,
-                    description: `Remittance from ${transaction.sender.email}`
-                }
-            })
-        ]);
-
-        console.log(`Payment processed successfully for transaction ${transaction.id}`);
+       console.log(`Payment processed successfully for transaction ${transaction.id}`);
     } catch (error) {
         console.error('Error processing payment:', error);
         throw new customError('Failed to process successful payment', 500);
     }
-};
-
-
-
-
- 
+};;

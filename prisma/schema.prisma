@@ -96,7 +96,7 @@
 
   enum TransactionStatus {
     PENDING
-    PROCESSING
+    REVERSED  
     COMPLETED
     FAILED
     CANCELLED

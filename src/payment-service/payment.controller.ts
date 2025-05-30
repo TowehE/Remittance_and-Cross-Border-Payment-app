@@ -16,9 +16,9 @@ class PaymentController {
         throw new customError('Authentication required', 401);
       }
       
-      const { amount, currency, targetCurrency, receiverId, receiverAccountNumber } = req.body;
+      const { amount, currency, targetCurrency, receiverId, receiver_account_number } = req.body;
       
-      if (!amount || !currency || !targetCurrency || (!receiverId && !receiverAccountNumber)) {
+      if (!amount || !currency || !targetCurrency || (!receiverId && !receiver_account_number)) {
         throw new customError('Missing required fields', 400);
       }
       
@@ -28,7 +28,7 @@ class PaymentController {
         currency,
         targetCurrency,
         receiverId,
-        receiverAccountNumber
+        receiver_account_number
       }, req);
       
     
