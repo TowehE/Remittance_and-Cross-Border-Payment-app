@@ -1,5 +1,3 @@
-// payment.validation.ts
-
 import { customError } from '../shared/middleware/error_middleware';
 import { intiate_payment_data } from './payment.service';
 import { find_user_with_default_account, find_user_account_by_accountno } from './payment.crud';
@@ -53,7 +51,7 @@ export const validate_intiate_remittance_data = async ( payment_data: intiate_pa
   if (sender.id === receiver.id) {
     throw new customError('You cannot send money to yourself', 400);
   }
-  
+
 
   const sender_account = sender.accounts[0] as AccountType;
   const receiver_account = receiver.accounts[0] as AccountType;
