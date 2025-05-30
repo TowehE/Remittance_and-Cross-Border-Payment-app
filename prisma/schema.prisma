@@ -17,7 +17,6 @@
     phoneNumber       String?
     userType          String  
     country          String? 
-    verificationStatus VerificationStatus @default(UNVERIFIED)
     createdAt         DateTime          @default(now())
     updatedAt         DateTime          @updatedAt
     accounts          Account[]
@@ -87,16 +86,10 @@
     @@unique([sourceCurrency, targetCurrency])
   }
 
-  enum VerificationStatus {
-    UNVERIFIED
-    PENDING
-    VERIFIED
-    REJECTED
-  }
+
 
   enum TransactionStatus {
-    PENDING
-    REVERSED  
+    PENDING   
     COMPLETED
     FAILED
     CANCELLED

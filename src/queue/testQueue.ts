@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { transaction_queue } from "../rate-service/redis.service";
+import { transaction_queue } from "../rate/redis.service";
 
 const prisma = new PrismaClient();
 

@@ -103,7 +103,7 @@ export const get_all_users = async (req: Request, res: Response, next: NextFunct
 };
 
 
-export const admin_fund_user_wallet = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const fund_user_wallet = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
 
     const { userId, amount } = req.body;

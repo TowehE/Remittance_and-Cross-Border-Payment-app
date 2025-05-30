@@ -5,7 +5,7 @@ import Stripe from 'stripe';
 import crypto from 'crypto'
 import { PrismaClient } from '@prisma/client';
 import { PAYSTACK_WEBHOOK_SECRET, PAYSTACK_SECRET_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '../shared/config';
-import { process_successful_payment } from '../payment-service/payment.service';
+import { process_successful_payment } from '../payment/payment.service';
 
 
 export interface RequestWithRawBody extends ExpressRequest {

@@ -63,16 +63,13 @@ if(exchange_rate){
 export const calculate_transfer_amount = async(
     amount: number,
     sourceCurrency: string,
-    targetCurrency: string
-)=> {
-    const exchange_rate = await get_exchange_rate (sourceCurrency, targetCurrency)
-
-     // Calculate fees (for example, 1.5% of the amount)
-    const fee_percentage = 0.015
-    const fees = amount * fee_percentage
-
-// Calculate target amount after fees
-const target_amount = (amount - fees) * exchange_rate.rate
+    targetCurrency: string,
+     isLocalPayment: boolean
+  )=> {
+    const exchange_rate = await get_exchange_rate(sourceCurrency, targetCurrency);
+  const fee_percentage = isLocalPayment ? 0.015 : 0.03; 
+  const fees = amount * fee_percentage;
+  const target_amount = (amount - fees) * exchange_rate.rate;
 
 return {
     sourceAmount: amount,

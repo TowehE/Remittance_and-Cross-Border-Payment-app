@@ -2,11 +2,11 @@ import express, { Application, Request, Response, NextFunction } from "express";
 import morgan from 'morgan'
 import cors from 'cors'
 import helmet from 'helmet'
-import user_routes from './user-service/user.routes'
-import rate_routes from './rate-service/rate_routes'
+import user_routes from './user/user.routes'
+import rate_routes from './rate/rate_routes'
 import { errorHandler } from './shared/middleware/error_middleware'
-import payment_routes from './payment-service/payment_routes'
-import webhook_routes from './payment-service/wehbook_route'
+import payment_routes from './payment/payment_routes'
+import webhook_routes from '../src/api-gateway/wehbook_route'
 import { Request as ExpressRequest } from "express";
 
 

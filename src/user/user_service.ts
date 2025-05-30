@@ -4,7 +4,6 @@ import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken";
 import { JWT_EXPIRES_IN, JWT_SECRET } from "../shared/config";
 import { Secret, SignOptions } from "jsonwebtoken";
-import { generate_account_number } from "../transaction-service/account_utils";
 import { create_dedicated_account } from "../api-gateway/paystack.integration";
 import { create_stripe_account } from "../api-gateway/stripe_integration";
 
@@ -34,8 +33,7 @@ export const register_user = async (user_data : user_registration_data) => {
 if (existing_user){
     throw new customError ("User with this email already exists", 400)
 }
-// // Simple check - Nigerian numbers typically start with +234
-// const isInternational = user_data.phoneNumber && !user_data.phoneNumber.includes('+234');
+
 
 const salt = await bcrypt.genSalt(10)
 const hashed_password = await bcrypt.hash(user_data.password, salt)
@@ -58,8 +56,7 @@ const new_user = await prisma.user.create({
     },
         
 })
-// create a paystack customer
-// const paystack_customer_id = new_user.id
+
 
  // Create accounts based on user type
  if (!isInternational) {
@@ -71,7 +68,6 @@ const dedicated_account = await create_dedicated_account({
     preferred_bank: "test-bank", 
     firstName: new_user.firstName,
     lastName: new_user.lastName,
-    // phoneNumber: new_user.phoneNumber
     phoneNumber: new_user.phoneNumber ?? undefined,
   });
 

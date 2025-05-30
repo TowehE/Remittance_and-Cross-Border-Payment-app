@@ -1,3 +1,7 @@
+
+  import { PrismaClient } from "@prisma/client";
+  const prisma = new PrismaClient();
+
 export interface currency_details {
     currencyCode: string;
     minimumAmount: number;
@@ -69,3 +73,11 @@ export interface currency_details {
 
 
   
+  // Generate a unique account number (10 digits)
+  export const generate_account_number = async (): Promise<string> => {
+    // Generate a random 10-digit number
+    const prefix = Date.now().toString().slice(-2);
+    const random_num = prefix + Math.floor(10000000 + Math.random() * 90000000).toString();
+    
+    return random_num;
+  };

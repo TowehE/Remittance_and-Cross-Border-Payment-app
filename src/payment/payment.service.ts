@@ -3,9 +3,9 @@ import { customError } from '../shared/middleware/error_middleware';
 import { v4 as uuidv4 } from 'uuid';
 import * as paystack_service from '../api-gateway/paystack.integration'
 import * as stripe_service from '../api-gateway/stripe_integration'
-import { get_exchange_rate } from '../rate-service/rate.controller';
+import { get_exchange_rate } from '../rate/rate.controller';
 import { get_minimum_transfer_amount } from '../utilis';
-import * as rate_service from '../rate-service/rate.service'
+import * as rate_service from '../rate/rate.service'
 import Decimal from 'decimal.js';
 import { Request } from 'express';
 import { create_account_transactions, create_transaction, find_transaction_by_Id, find_user_account_by_accountno, find_user_with_default_account, update_account_balance, update_transaction } from './payment.crud';
@@ -48,8 +48,12 @@ export const intiate_remittance_payment = async ( payment_data: intiate_payment_
     targetAmount
   } = await validate_intiate_remittance_data(payment_data);
 
+
+
   const target_amount_number = targetAmount.toNumber();
   const fees_number = fees.toNumber();
+
+  
 
   const transaction = await prisma.transaction.create({
     data: {

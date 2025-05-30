@@ -1,7 +1,7 @@
 import { PrismaClient, TransactionStatus } from "@prisma/client";
-import { transaction_queue } from "../rate-service/redis.service";
+import { transaction_queue } from "../rate/redis.service";
 import { get_transaction_with_users, mark_transaction_as_failed, mark_transation_as_success } from "./transaction.crud.queue";
-import { process_successful_payment } from "../payment-service/payment.service";
+import { process_successful_payment } from "../payment/payment.service";
 import Decimal from "decimal.js";
 
 const prisma = new PrismaClient()

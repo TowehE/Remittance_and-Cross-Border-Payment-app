@@ -6,7 +6,7 @@ import { find_user_with_default_account, find_user_account_by_accountno } from '
 
 import { get_minimum_transfer_amount } from '../utilis';
 import Decimal from 'decimal.js';
-import { get_exchange_rate } from '../rate-service/rate.service';
+import { calculate_transfer_amount, get_exchange_rate } from '../rate/rate.service';
 
 
 // Define AccountType if not already globally declared
@@ -29,9 +29,9 @@ interface ValidationResult {
   targetAmount: Decimal;
 }
 
-export const validate_intiate_remittance_data = async (
-  payment_data: intiate_payment_data
-): Promise<ValidationResult> => {
+export const validate_intiate_remittance_data = async ( payment_data: intiate_payment_data): Promise<ValidationResult> => {
+
+  
   // Validate sender
   const sender = await find_user_with_default_account(payment_data.userId);
   if (!sender || sender.accounts.length === 0) {
@@ -53,6 +53,7 @@ export const validate_intiate_remittance_data = async (
   if (sender.id === receiver.id) {
     throw new customError('You cannot send money to yourself', 400);
   }
+  
 
   const sender_account = sender.accounts[0] as AccountType;
   const receiver_account = receiver.accounts[0] as AccountType;
@@ -71,26 +72,25 @@ export const validate_intiate_remittance_data = async (
     throw new customError('Insufficient funds', 400);
   }
 
-  // Get exchange rate
-  const rate = await get_exchange_rate(payment_data.currency, payment_data.targetCurrency);
-  if (!rate) {
-    throw new customError(
-      'Exchange rate not available for the selected currencies',
-      400
-    );
-  }
+ // Determine if payment is local: both sender and receiver are local users
+  const isLocalPayment = sender.userType === 'local' && receiver.userType === 'local';
 
-  const exchangeRate = new Decimal(rate.rate);
-  const amount = new Decimal(payment_data.amount);
-  const fees = amount.mul(0.015);
-  const targetAmount = amount.minus(fees).mul(exchangeRate);
-
-  // Check minimum transfer amount
-  const minimumAmount = new Decimal(
-    get_minimum_transfer_amount(payment_data.targetCurrency)
+  
+  // Calculate fees and target amount
+  const { fees, targetAmount, rate } = await calculate_transfer_amount(
+    payment_data.amount,
+    payment_data.currency,
+    payment_data.targetCurrency,
+    isLocalPayment
   );
 
-  if (targetAmount.lessThan(minimumAmount)) {
+  const feesDecimal = new Decimal(fees);
+  const targetAmountDecimal = new Decimal(targetAmount);
+  const exchangeRate = new Decimal(rate.rate);
+
+  // Check minimum transfer amount after fees & exchange rate
+  const minimumAmount = new Decimal(get_minimum_transfer_amount(payment_data.targetCurrency));
+  if (targetAmountDecimal.lessThan(minimumAmount)) {
     throw new customError(
       'Target amount is too small after fees and exchange rate. Please send a higher amount.',
       400
@@ -103,7 +103,7 @@ export const validate_intiate_remittance_data = async (
     sender_account,
     receiver_account,
     exchangeRate,
-    fees,
-    targetAmount
+    fees : feesDecimal,
+    targetAmount: targetAmountDecimal
   };
 };

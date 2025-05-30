@@ -14,7 +14,7 @@
   "author": "Toweh Elizabeth",
   "license": "ISC",
   "dependencies": {
-    "@prisma/client": "^5.10.2",
+    "@prisma/client": "^5.22.0",
     "axios": "^1.9.0",
     "bcrypt": "^5.1.1",
     "bull": "^4.16.5",
@@ -29,7 +29,7 @@
     "morgan": "^1.10.0",
     "paystack-api": "^2.0.6",
     "pg": "^8.15.5",
-    "prisma": "^5.10.2",
+    "prisma": "^5.22.0",
     "raw-body": "^3.0.0",
     "redis": "^4.7.0",
     "stripe": "^18.0.0",

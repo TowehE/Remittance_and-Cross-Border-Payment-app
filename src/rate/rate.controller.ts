@@ -29,16 +29,17 @@ export const get_exchange_rate = async (req: Request, res: Response, next: NextF
 
 export const calculate_amount = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { amount, sourceCurrency, targetCurrency } = req.body;
+    const { amount, sourceCurrency, targetCurrency , isLocalPayment} = req.body;
     
-    if (!amount || !sourceCurrency || !targetCurrency) {
+    if (!amount || !sourceCurrency || !targetCurrency || !isLocalPayment) {
       throw new customError('Amount, source currency, and target currency are required', 400);
     }
     
     const calculation = await rate_service.calculate_transfer_amount(
       parseFloat(amount),
       sourceCurrency.toUpperCase(),
-      targetCurrency.toUpperCase()
+      targetCurrency.toUpperCase(),
+      isLocalPayment
     );
     
     res.status(200).json({
