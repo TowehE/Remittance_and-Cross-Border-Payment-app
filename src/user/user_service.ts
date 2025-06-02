@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+ import { PrismaClient } from "@prisma/client";
 import { customError } from "../shared/middleware/error_middleware";
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken";
@@ -82,6 +82,8 @@ const dedicated_account = await create_dedicated_account({
       isDefault: true
     }
   });
+
+
 
 } else {
     // For international users - use Stripe
@@ -172,7 +174,7 @@ const token = jwt.sign(
 export const update_user_profile = async (userId: string, update_user_data: { password: string }) => {
 
     if (!userId) {
-        throw new customError("User ID is required", 400); // Check if userId exists
+        throw new customError("User ID is required", 400); 
       } 
     if (!update_user_data.password) {
       throw new customError("Only password update is allowed", 400);
@@ -221,7 +223,8 @@ export const fund_user_wallet = async (userId: string, amount: number) => {
   if (amount <= 0) {
     throw new customError("Amount must be greater than zero", 400);
   }
-
+  
+ 
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { accounts: true }
@@ -232,16 +235,16 @@ export const fund_user_wallet = async (userId: string, amount: number) => {
   }
 
   // Assuming the first account is the default one
-  const defaultAccount = user.accounts[0];
+  const default_account = user.accounts[0];
   
-  if (!defaultAccount) {
+  if (!default_account) {
     throw new customError("No account found for this user", 404);
   }
 
-  const updatedAccount = await prisma.account.update({
-    where: { id: defaultAccount.id },
+  const updated_account = await prisma.account.update({
+    where: { id: default_account.id },
     data: { balance: { increment: amount } }
   });
 
-  return updatedAccount;
+  return updated_account;
 };

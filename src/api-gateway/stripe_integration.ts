@@ -168,7 +168,7 @@ export const verify_payment = async (reference: string) => {
       status: session.payment_status === 'paid' ? 'success' : 'failed',
       data: {
         reference: session.id,
-        amount: session.amount_total ? session.amount_total / 100 : 0, // Convert from cents
+        amount: session.amount_total ? session.amount_total / 100 : 0, 
         currency: session.currency,
         customer: session.customer,
         metadata: session.metadata

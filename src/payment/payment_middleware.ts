@@ -56,6 +56,13 @@ export const validate_intiate_remittance_data = async ( payment_data: intiate_pa
   const sender_account = sender.accounts[0] as AccountType;
   const receiver_account = receiver.accounts[0] as AccountType;
 
+    // Check balance
+  const balance = new Decimal(sender_account.balance);
+  if (balance.lessThan(payment_data.amount)) {
+    throw new customError('Insufficient funds', 400);
+  }
+
+
   // Validate currency match
   if (sender_account.currency !== payment_data.currency) {
     throw new customError(
@@ -64,11 +71,6 @@ export const validate_intiate_remittance_data = async ( payment_data: intiate_pa
     );
   }
 
-  // Check balance
-  const balance = new Decimal(sender_account.balance);
-  if (balance.lessThan(payment_data.amount)) {
-    throw new customError('Insufficient funds', 400);
-  }
 
  // Determine if payment is local: both sender and receiver are local users
   const isLocalPayment = sender.userType === 'local' && receiver.userType === 'local';
@@ -84,7 +86,9 @@ export const validate_intiate_remittance_data = async ( payment_data: intiate_pa
 
   const feesDecimal = new Decimal(fees);
   const targetAmountDecimal = new Decimal(targetAmount);
-  const exchangeRate = new Decimal(rate.rate);
+  const exchangeRate = new Decimal(rate);
+ 
+
 
   // Check minimum transfer amount after fees & exchange rate
   const minimumAmount = new Decimal(get_minimum_transfer_amount(payment_data.targetCurrency));

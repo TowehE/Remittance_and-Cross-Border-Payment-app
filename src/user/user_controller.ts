@@ -62,9 +62,7 @@ export const update_user_profile = async (req: Request, res: Response, next: Nex
       throw new customError('Authentication required', 401);
     }
 
-    console.log('User in request:', req.user);
-    console.log('User ID:', req.user.user_id);
-    // Call service function to update user profile
+
     const updated_user = await user_service.update_user_profile(req.user.user_id, req.body);
 
     // Send success response
@@ -105,23 +103,27 @@ export const get_all_users = async (req: Request, res: Response, next: NextFunct
 
 export const fund_user_wallet = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-
-    const { userId, amount } = req.body;
-
-    if (!userId || !amount || amount <= 0) {
-      throw new customError('User ID and a valid amount are required', 400);
+    // check if the user is authenticated
+    if(!req.user){
+      throw new customError('Authentication required', 400)
     }
+  
+    const amount = req.body.amount;
 
+    if (!amount || amount <= 0) {
+      throw new customError('A valid amount is required', 400);
+    }
+  
     // Call service function to fund user wallet
-    const updated_user = await user_service.fund_user_wallet(userId, amount);
+    const updated_user = await user_service.fund_user_wallet(req.user.user_id, amount);
 
+    
     // Send success response
     res.status(200).json({
       status: 'success',
       data: updated_user
     });
   } catch (error) {
-    // Pass the error to the next middleware (error handler)
     next(error);
   }
 }
