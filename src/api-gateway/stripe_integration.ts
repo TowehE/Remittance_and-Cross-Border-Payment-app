@@ -1,6 +1,6 @@
 import { Request } from 'express';
 import Stripe from 'stripe'
-import { STRIPE_SECRET_KEY } from '../shared/config'
+import { APP_BASE_URL, STRIPE_SECRET_KEY } from '../shared/config'
 import { customError } from '../shared/middleware/error_middleware';
 
 
@@ -102,13 +102,14 @@ export const create_payment_session = async (params: create_payment_intent_data,
     // Convert amount to cents (Stripe uses smallest currency unit)
     const amountInSmallestUnit = Math.round(params.amount * 100);
 
-    // Get the request host and protocol
-      const host = req.get("host");
-      const protocol = host && host.includes("localhost") ? "http" : "https";
+    // // Get the request host and protocol
+    //   const host = req.get("host");
+    //   const protocol = host && host.includes("localhost") ? "http" : "https";
   
      // Use default test URLs if none provided
-     const successUrl = params.successUrl || `${protocol}://${req.get("host")}/success`;
-     const cancelUrl = params.cancelUrl || `${protocol}://${req.get("host")}/cancel`;
+    //  const successUrl = params.successUrl || `${protocol}://${req.get("host")}/success`;
+    //  const cancelUrl = params.cancelUrl || `${protocol}://${req.get("host")}/cancel`;
+
      
     const session = await stripe.checkout.sessions.create({
       customer: params.customerId,
@@ -127,8 +128,8 @@ export const create_payment_session = async (params: create_payment_intent_data,
         },
       ],
       metadata: params.metadata,
-      success_url: successUrl,
-      cancel_url: cancelUrl,
+      success_url: `APP_BASE_URL/success`,
+      cancel_url: `APP_BASE_URL/cancel`,
     });
     if (!session.url) {
       console.error('Stripe session URL is undefined', session);

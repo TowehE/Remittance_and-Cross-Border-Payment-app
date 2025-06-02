@@ -1,7 +1,7 @@
         import dotenv from 'dotenv';
 
         dotenv.config();
-
+        export const APP_BASE_URL = process.env.APP_BASE_URL || 'https://remittance-app.onrender.com';
         export const PORT = process.env.PORT || 2345;
         export const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-toweh';
         export const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
