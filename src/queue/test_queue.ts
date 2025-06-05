@@ -50,7 +50,10 @@ async function schedule_auto_cancel_jobs() {
   }
 }
 
-setInterval(schedule_pending_transactions, 1000 * 60 *5)
-setInterval(schedule_auto_cancel_jobs, 1000 * 60 *5)
-schedule_pending_transactions();
-schedule_auto_cancel_jobs() 
+export function start_scheduled_jobs() {
+  schedule_pending_transactions();
+  schedule_auto_cancel_jobs();
+
+  setInterval(schedule_pending_transactions, 5 * 60 * 1000);
+  setInterval(schedule_auto_cancel_jobs, 5 * 60 * 1000);
+}
