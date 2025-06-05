@@ -133,9 +133,6 @@ export const create_payment_session = async (params: create_payment_intent_data,
       console.error('Stripe session URL is undefined', session);
       throw new customError('Failed to get payment URL from Stripe', 500);
     }
-console.log('Stripe session:', session);
-
-
 
      const user_email = params.metadata?.user_email;
      console.log('User email for payment:', user_email);

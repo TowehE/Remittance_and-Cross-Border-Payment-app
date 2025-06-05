@@ -103,10 +103,8 @@ const stripe = new Stripe(STRIPE_SECRET_KEY)
  
      default:
 
-       console.log('Unhandled event type:', event.type);
    } } catch (error) {
     console.error('Error handling Stripe event:', error);
-    // Respond 500, or 200 to avoid webhook retries if you prefer
     return res.status(500).json({ error: 'Webhook handler error' });
   }
  

@@ -53,23 +53,29 @@ transaction_queue.process('process-transaction', async (job) => {
 // Auto-cancel old transactions never paid for
 transaction_queue.process('auto-cancel', async (job) => {
   const { transactionId } = job.data;
-
-  const transaction = await prisma.transaction.findUnique({
-    where: { id: transactionId },
-  });
-
-  const ten_mins_ago = new Date(Date.now() - 10 * 60 * 1000);
-
-  if (
-    transaction &&
-    transaction.status === TransactionStatus.PENDING &&
-    transaction.createdAt < ten_mins_ago
-  ) {
-    await prisma.transaction.update({
+  try {
+    const transaction = await prisma.transaction.findUnique({
       where: { id: transactionId },
-      data: { status: TransactionStatus.CANCELLED },
     });
 
-    console.log(`Transaction ${transactionId} auto-cancelled`);
+    const ten_mins_ago = new Date(Date.now() - 10 * 60 * 1000);
+
+    if (
+      transaction &&
+      transaction.status === TransactionStatus.PENDING &&
+      transaction.createdAt < ten_mins_ago
+    ) {
+      await prisma.transaction.update({
+        where: { id: transactionId },
+        data: { status: TransactionStatus.CANCELLED },
+      });
+
+      console.log(`Transaction ${transactionId} auto-cancelled`);
+    } else {
+      console.log(`Transaction ${transactionId} not eligible for auto-cancel`);
+    }
+  } catch (error) {
+    console.error(`Error auto-cancelling transaction ${transactionId}:`, error);
+    throw error; 
   }
 });
