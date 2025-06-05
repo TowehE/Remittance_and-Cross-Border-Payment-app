@@ -45,15 +45,22 @@ export const get_cached_rate = async (sourceCurrency: string, targetCurrency: st
 
 export const cache_rate = async (sourceCurrency: string, targetCurrency: string, data: any, expirationSeconds = 36000  ) => {
   const cacheKey = `rate:${sourceCurrency}:${targetCurrency}`;
-  await redisClient.set(cacheKey, JSON.stringify(data), {
-    EX: expirationSeconds
-  });
+  await redisClient.set(cacheKey, JSON.stringify(data), { EX: expirationSeconds });
 };
 
 export const clear_cache = async () => {
   await redisClient.flushAll();
 };
 
+async function gracefulShutdown() {
+  console.log('Closing Redis client and Bull queue...');
+  await transaction_queue.close();
+  await redisClient.quit();
+  process.exit(0);
+}
+
+process.on('SIGINT', gracefulShutdown);
+process.on('SIGTERM', gracefulShutdown);
 
 
 
