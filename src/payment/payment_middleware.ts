@@ -2,7 +2,7 @@ import { customError } from '../shared/middleware/error_middleware';
 import { intiate_payment_data } from './payment.service';
 import { find_user_with_default_account, find_user_account_by_accountno } from './payment.crud';
 
-import { get_minimum_transfer_amount } from '../utilis';
+import { get_minimum_transfer_amount } from '../utilis/utilis';
 import Decimal from 'decimal.js';
 import { calculate_transfer_amount, get_exchange_rate } from '../rate/rate.service';
 

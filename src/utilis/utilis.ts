@@ -66,8 +66,8 @@ export interface currency_details {
   };
   
   export const get_minimum_transfer_amount = (country: string): number => {
-    const country_formatted = country.toUpperCase().replace(/ /g, '_'); // Handle spaces and case
-    return COUNTRY_MINIMUMS[country_formatted]?.minimumAmount || 1; // default fallback to 1
+    const country_formatted = country.toUpperCase().replace(/ /g, '_'); 
+    return COUNTRY_MINIMUMS[country_formatted]?.minimumAmount || 1; 
   };
   
 

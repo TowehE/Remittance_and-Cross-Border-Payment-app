@@ -8,6 +8,7 @@ import { errorHandler } from './shared/middleware/error_middleware'
 import payment_routes from './payment/payment_routes'
 import webhook_routes from './api-gateway/wehbook_route';
 import { Request as ExpressRequest } from "express";
+import path from "path";
 
 
 const app = express()
@@ -66,6 +67,8 @@ app.use('/api/v1/webhook/stripe', (req: RequestWithRawBody, res: Response, next:
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }))
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 
 
 
@@ -80,11 +83,11 @@ app.get('/', (req, res) => {
 });
 
 app.get('/success', (req, res) => {
-  res.send('Payment successful! Thank you for your payment.');
+  res.render('success')
 })
 
 app.get('/cancel', (req, res) => {
-  res.send('Payment was canceled. Please try again.');
+  res.render('cancel')
 })
 
 // Routes

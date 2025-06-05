@@ -2,6 +2,7 @@ import axios from "axios"
 import { PAYSTACK_SECRET_KEY } from "../shared/config"
 import { customError } from "../shared/middleware/error_middleware";
 import { PrismaClient } from '@prisma/client'
+import { send_email } from "../utilis/email";
 
 const prisma = new PrismaClient()
 
@@ -46,6 +47,20 @@ export const initiate_payment = async (payment_data : initiate_payment_data) => 
             ...payment_data,
             amount
         })
+
+    const currency = payment_data.currency?.toUpperCase() || 'USD';
+
+          const user_email = payment_data.email;
+    if (user_email) {
+      await send_email({
+        to: user_email,
+        subject: 'Payment Initiated',
+        html: `<p>Hello,</p>
+               <p>Your payment of ${payment_data.amount} ${currency} has been initiated.</p>
+               <p>Please complete your payment by visiting this <a href="${response.data.data.authorization_url}">payment link</a>.</p>
+               <p>If you did not initiate this payment, please ignore this message or contact support.</p>`
+      });
+    }
         return response.data.data
     } catch (error) {
         if (axios.isAxiosError(error)) {

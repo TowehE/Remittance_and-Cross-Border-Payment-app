@@ -13,3 +13,5 @@
         export const STRIPE_SECRET_KEY= process.env.STRIPE_SECRET_KEY || '';
         export const EXCHANGE_RATE_BASE_URL= process.env.EXCHANGE_RATE_BASE_URL || '';
         export const PAYSTACK_WEBHOOK_SECRET= process.env.PAYSTACK_WEBHOOK_SECRET || '';
+        export const EMAIL_PASSWORD= process.env.EMAIL_PASSWORD || '';
+        export const EMAIL_USER= process.env.EMAIL_USER || '';

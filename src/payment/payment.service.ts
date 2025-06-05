@@ -119,7 +119,7 @@ export const intiate_remittance_payment = async ( payment_data: intiate_payment_
       },
       req
     );
-console.log("payment_initiation", payment_initiation )
+
     await update_transaction(transaction.id, {
       paymentReference: payment_initiation.id,
       StripecheckoutSessionId: payment_initiation.id,

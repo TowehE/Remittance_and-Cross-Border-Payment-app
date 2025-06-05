@@ -6,6 +6,7 @@ import crypto from 'crypto'
 import { PrismaClient } from '@prisma/client';
 import { PAYSTACK_WEBHOOK_SECRET, PAYSTACK_SECRET_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '../shared/config';
 import { process_successful_payment } from '../payment/payment.service';
+import { send_email } from "../utilis/email";
 
 
 export interface RequestWithRawBody extends ExpressRequest {
@@ -17,26 +18,13 @@ const prisma = new PrismaClient();
 
 const stripe = new Stripe(STRIPE_SECRET_KEY)
 
-
-
-// const stripe = new Stripe(STRIPE_SECRET_KEY, {
-// //     apiVersion: '2025-03-31.basil'
-// //   });
-  
   // Handles Stripe webhook events on webhook endpoint
  export const handle_stripe_webhook_event = async (req: RequestWithRawBody, res: Response) => {
    let event: Stripe.Event;
-  console
+
   
   const signature = req.headers['stripe-signature'] as string;
   const rawBody = req.rawBody;
-console.log("signature:",  signature)
-console.log("raw body", rawBody)
-console.log("stripe webhook secret:", STRIPE_SECRET_KEY)
-  console.log("Stripe signature:", signature ? "Present" : "Missing");
-  console.log("Stripe webhook secret:", STRIPE_WEBHOOK_SECRET ? "Present" : "Missing");
-  console.log("Stripe raw body is buffer:", Buffer.isBuffer(rawBody));
-  console.log("Is rawBody a buffer:", Buffer.isBuffer(rawBody));
 
   // Check for missing components
   if (!signature) {
@@ -75,6 +63,21 @@ console.log("stripe webhook secret:", STRIPE_SECRET_KEY)
        const session = event.data.object as Stripe.Checkout.Session;
        const transactionId = session.metadata?.transactionId;
        if (transactionId) await process_successful_payment({ id: transactionId });
+
+      // send confirmation emailafter webhook has been processed
+      const email = session.customer_details?.email || session.metadata?.email
+
+      if(email) {
+        await send_email({
+          to: email,
+           subject: 'Payment Successful',
+        html: `<p>Hi,</p>
+               <p>Your payment of ${session.amount_total! / 100} ${session.currency!.toUpperCase()} was successful.</p>
+               <p>Transaction ID: ${transactionId}</p>
+               <p>Thank you for using our service.</p>`
+
+        })
+      }
        break;
      }
  
@@ -111,7 +114,6 @@ console.log("stripe webhook secret:", STRIPE_SECRET_KEY)
 
 
 // Handles Paystack webhook events
-// Handles Paystack webhook events
 export const handle_paystack_webhook_event = async (req: RequestWithRawBody, res: Response) => {
   try {
     const rawBody = req.rawBody;
@@ -141,6 +143,22 @@ export const handle_paystack_webhook_event = async (req: RequestWithRawBody, res
         
         if (transaction) {
           await process_successful_payment({ id: transaction.id });
+
+            const user = await prisma.user.findUnique({
+            where: { id: transaction.senderId },
+  });
+            if(user?.email){
+              await send_email({
+                 to: user.email,
+                    subject: 'Payment Successful',
+                    html: `<p>Hi ${user.lastName } ${user.firstName || ''},</p>
+                          <p>Your payment of ${transaction.sourceAmount} ${transaction.sourceCurrency} was successful.</p>
+                          <p>Reference: ${transaction.paymentReference}</p>
+                          <p>Thank you.</p>`
+              })
+            }
+            
+
         } else {
           console.error(`Transaction not found for reference: ${data.reference}`);
         }
