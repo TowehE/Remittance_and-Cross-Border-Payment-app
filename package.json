@@ -32,6 +32,7 @@
     "paystack-api": "^2.0.6",
     "pg": "^8.15.5",
     "prisma": "^5.22.0",
+    "rate-limiter-flexible": "^7.1.1",
     "raw-body": "^3.0.0",
     "redis": "^4.7.0",
     "stripe": "^18.0.0",

@@ -2,12 +2,13 @@ import express from 'express';
 import { auth_middleware } from '../shared/middleware/auth_middleware';
 import { Payment_controllerr } from './payment.controller';
 import { rawBodyMiddleware } from '../shared/middleware/raw_body_middleware';
+import { intiate_payment_rate_limiter } from '../shared/middleware/redis_rate_limits';
 
 
 const router = express.Router();
 
 // Protected routes
-router.post('/initiate', auth_middleware, Payment_controllerr.intiate_payment);
+router.post('/initiate', auth_middleware, intiate_payment_rate_limiter, Payment_controllerr.intiate_payment);
 
 // router.post(
 //     '/webhook/stripe', 
@@ -26,3 +27,18 @@ router.post('/status', auth_middleware, Payment_controllerr.process_successful_p
 
 
 export default router;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
