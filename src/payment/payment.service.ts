@@ -7,6 +7,7 @@ import Decimal from 'decimal.js';
 import { Request } from 'express';
 import { create_account_transactions, create_transaction, find_transaction_by_Id, find_user_account_by_accountno, find_user_with_default_account, update_account_balance, update_transaction } from './payment.crud';
 import { validate_intiate_remittance_data } from './payment_middleware';
+import { transaction_queue } from '../rate/redis.service';
 
 
 
@@ -71,6 +72,12 @@ export const intiate_remittance_payment = async ( payment_data: intiate_payment_
       }
     }
   });
+
+  await transaction_queue.add(
+  'auto-cancel',
+  { transactionId: transaction.id },
+  { delay: 10 * 60 * 1000 } // 10 minutes
+);
 
   const reference = `RM-${uuidv4()}`;
   const metadata = {

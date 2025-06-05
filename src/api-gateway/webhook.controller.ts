@@ -7,6 +7,7 @@ import { PrismaClient } from '@prisma/client';
 import { PAYSTACK_WEBHOOK_SECRET, PAYSTACK_SECRET_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '../shared/config';
 import { process_successful_payment } from '../payment/payment.service';
 import { send_email } from "../utilis/email";
+import { transaction_queue } from "../rate/redis.service";
 
 
 export interface RequestWithRawBody extends ExpressRequest {
@@ -62,8 +63,9 @@ const stripe = new Stripe(STRIPE_SECRET_KEY)
      case 'checkout.session.completed': {
        const session = event.data.object as Stripe.Checkout.Session;
        const transactionId = session.metadata?.transactionId;
-       if (transactionId) await process_successful_payment({ id: transactionId });
-
+     if (transactionId) {
+  await transaction_queue.add('process-transaction', { transactionId });
+}
       // send confirmation emailafter webhook has been processed
       const email = session.customer_details?.email || session.metadata?.email
 
@@ -141,7 +143,9 @@ export const handle_paystack_webhook_event = async (req: RequestWithRawBody, res
         });
         
         if (transaction) {
-          await process_successful_payment({ id: transaction.id });
+          // await process_successful_payment({ id: transaction.id });
+          await transaction_queue.add('process-transaction', { transactionId: transaction.id });
+
 
             const user = await prisma.user.findUnique({
             where: { id: transaction.senderId },
