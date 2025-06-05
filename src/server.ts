@@ -13,9 +13,6 @@ import path from "path";
 
 const app = express()
 
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
-console.log(__dirname);
 
 declare module 'express-serve-static-core' {
   interface Request {
@@ -48,15 +45,13 @@ app.use('/api/v1/webhook/stripe', express.raw({ type: 'application/json' }));
 // Middleware to add raw body to req object
 app.use('/api/v1/webhook/stripe', (req: RequestWithRawBody, res: Response, next: NextFunction) => {
     if (req.headers["stripe-signature"]) {
-        req.rawBody = req.body; // Use raw body for signature verification
+      // Use raw body for signature verification
+        req.rawBody = req.body; 
            console.log("Stripe raw body is buffer:", Buffer.isBuffer(req.rawBody)); 
     }
-    console.log("Is rawBody a buffer:", Buffer.isBuffer(req.rawBody)); // should be true
-
+    console.log("Is rawBody a buffer:", Buffer.isBuffer(req.rawBody)); 
     next();
 });
-
-
 
 
 app.use(express.json());

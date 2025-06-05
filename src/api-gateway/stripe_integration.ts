@@ -133,14 +133,19 @@ export const create_payment_session = async (params: create_payment_intent_data,
       console.error('Stripe session URL is undefined', session);
       throw new customError('Failed to get payment URL from Stripe', 500);
     }
+console.log('Stripe session:', session);
 
-     const user_email = params.metadata?.user_email; // or get user email from metadata or params
+
+
+     const user_email = params.metadata?.user_email;
+     console.log('User email for payment:', user_email);
+
     if (user_email) {
       await send_email({
         to: user_email,
         subject: 'Payment Initiated',
         html: `<p>Hello,</p>
-               <p>Your payment of ${params.amount} ${params.currency.toUpperCase()} has been initiated.</p>
+               <p>Your payment of ${params.amount} ${params.currency.toLowerCase()} has been initiated.</p>
                <p>Please complete your payment by visiting this <a href="${session.url}">payment link</a>.</p>
                <p>If you did not initiate this payment, please ignore this message or contact support.</p>`
       });
@@ -179,7 +184,7 @@ export const verify_payment = async (reference: string) => {
       status: session.payment_status === 'paid' ? 'success' : 'failed',
       data: {
         reference: session.id,
-        amount: session.amount_total ? session.amount_total / 100 : 0, // Convert from cents
+        amount: session.amount_total ? session.amount_total / 100 : 0, 
         currency: session.currency,
         customer: session.customer,
         metadata: session.metadata
