@@ -7,7 +7,7 @@ import Decimal from "decimal.js";
 const prisma = new PrismaClient()
 
 transaction_queue.process('process-transaction', async (job) => {
-        console.log(`Processing job ${job.id} for transaction: ${job.data.transactionId}`);
+ console.log(`Processing job ${job.id} for transaction: ${job.data.transactionId}`);
  const { transactionId } = job.data
  
   const transaction = await get_transaction_with_users(transactionId);
@@ -45,5 +45,31 @@ transaction_queue.process('process-transaction', async (job) => {
   } catch (error: any) {
     await mark_transaction_as_failed(transactionId, error.message);
     throw error;
+  }
+});
+
+
+
+// Auto-cancel old transactions never paid for
+transaction_queue.process('auto-cancel', async (job) => {
+  const { transactionId } = job.data;
+
+  const transaction = await prisma.transaction.findUnique({
+    where: { id: transactionId },
+  });
+
+  const ten_mins_ago = new Date(Date.now() - 10 * 60 * 1000);
+
+  if (
+    transaction &&
+    transaction.status === TransactionStatus.PENDING &&
+    transaction.createdAt < ten_mins_ago
+  ) {
+    await prisma.transaction.update({
+      where: { id: transactionId },
+      data: { status: TransactionStatus.CANCELLED },
+    });
+
+    console.log(`Transaction ${transactionId} auto-cancelled`);
   }
 });

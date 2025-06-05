@@ -9,7 +9,6 @@ router.post('/register', user_controller.register)
 router.post('/login', login_rate_limiter, user_controller.login)
 router.patch('/profile', auth_middleware, user_controller.update_user_profile);
 router.get('/users', user_controller.get_all_users);
-router.patch('/fund-wallet', auth_middleware,user_controller.fund_user_wallet);
 
 
 

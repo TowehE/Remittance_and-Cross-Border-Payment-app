@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import * as user_service from './user_service';
 import { customError } from '../shared/middleware/error_middleware';
-import { auth_middleware } from '../shared/middleware/auth_middleware';
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {

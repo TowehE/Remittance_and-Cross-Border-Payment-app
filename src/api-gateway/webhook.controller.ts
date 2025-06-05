@@ -147,7 +147,7 @@ export const handle_paystack_webhook_event = async (req: RequestWithRawBody, res
 
             const user = await prisma.user.findUnique({
             where: { id: transaction.senderId },
-  });
+            });
             if(user?.email){
               await send_email({
                  to: user.email,

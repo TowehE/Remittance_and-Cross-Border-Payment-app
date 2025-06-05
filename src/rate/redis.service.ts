@@ -28,14 +28,12 @@ export const transaction_queue = new Bull('transaction_queue', REDIS_URL)
 
 // Monitor successful job completion
 transaction_queue.on('completed', (job) => {
-  console.log(`Job ${job.id} completed successfully for transaction ${job.data.transactionId}`);
+  console.log(`Job ${job.id} [${job.name}] completed for transaction ${job.data.transactionId}`);
 });
 
-// Monitor job failures
 transaction_queue.on('failed', (job, err) => {
-  console.error(`Job ${job.id} failed for transaction ${job.data.transactionId}. Error: ${err.message}`);
+  console.error(`Job ${job.id} [${job.name}] failed for transaction ${job.data.transactionId}. Error: ${err.message}`);
 });
-
 
 
 export const get_cached_rate = async (sourceCurrency: string, targetCurrency: string) => {

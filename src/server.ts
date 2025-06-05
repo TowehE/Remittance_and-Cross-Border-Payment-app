@@ -9,7 +9,7 @@ import payment_routes from './payment/payment_routes'
 import webhook_routes from './api-gateway/wehbook_route';
 import { Request as ExpressRequest } from "express";
 import path from "path";
-// import { fileURLToPath } from "url";
+import transaction_routes from './transaction/transaction_routes'
 
 const app = express()
 
@@ -57,7 +57,6 @@ app.use('/api/v1/webhook/stripe', (req: RequestWithRawBody, res: Response, next:
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }))
 app.set('view engine', 'ejs');
-console.log('View path:', path.join(__dirname, 'views'));
 app.set('views', path.join(__dirname, '..', 'src', 'views'));
 
 
@@ -84,6 +83,7 @@ app.use('/api/v1/webhook', webhook_routes);
 app.use('/api/v1/auth', user_routes);
 app.use('/api/v1/rates', rate_routes);
 app.use('/api/v1/payment', payment_routes);
+app.use('/api/v1/balance', transaction_routes);
 
 
 app.use(errorHandler);

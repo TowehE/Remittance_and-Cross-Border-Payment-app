@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, TransactionStatus } from "@prisma/client";
 import { transaction_queue } from "../rate/redis.service";
 
 const prisma = new PrismaClient();
@@ -31,5 +31,26 @@ async function schedule_pending_transactions() {
     }
 }
 
+
+// Schedule only transactions that are older than 10 minutes and still PENDING
+async function schedule_auto_cancel_jobs() {
+  const threshold = new Date(Date.now() - 10 * 60 * 1000);
+
+  const stale_transactions = await prisma.transaction.findMany({
+    where: {
+      status: TransactionStatus.PENDING,
+      createdAt: { lt: threshold },
+    },
+    take: 5,
+  });
+ console.log(`Found ${stale_transactions.length} stale transactions to schedule for auto-cancel.`);
+
+  for (const tx of stale_transactions) {
+    await transaction_queue.add('auto-cancel', { transactionId: tx.id });
+  }
+}
+
 setInterval(schedule_pending_transactions, 1000 * 60 *5)
+setInterval(schedule_auto_cancel_jobs, 1000 * 60 *5)
 schedule_pending_transactions();
+schedule_auto_cancel_jobs() 
