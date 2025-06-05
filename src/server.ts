@@ -9,9 +9,13 @@ import payment_routes from './payment/payment_routes'
 import webhook_routes from './api-gateway/wehbook_route';
 import { Request as ExpressRequest } from "express";
 import path from "path";
-
+// import { fileURLToPath } from "url";
 
 const app = express()
+
+// const __filename = fileURLToPath(import.meta.url);
+// const __dirname = path.dirname(__filename);
+console.log(__dirname);
 
 declare module 'express-serve-static-core' {
   interface Request {
@@ -28,7 +32,6 @@ app.use(morgan('combined'));
 app.use(helmet());
 app.use(cors());
 
-
 // Middleware to parse raw body for the Paystack webhook
 app.use('/api/v1/webhook/paystack', express.raw({ type: 'application/json' }));
 
@@ -40,16 +43,7 @@ app.use('/api/v1/webhook/paystack', (req: Request, res: Response, next: NextFunc
     next();
 });
 
-
-
 app.use('/api/v1/webhook/stripe', express.raw({ type: 'application/json' }));
-
-// Middleware to parse raw body for the Stripe webhook
-// app.use('/api/v1/webhook/stripe', express.raw({ type: 'application/json' })); 
-// // Extend the Request interface to include rawBody
-// interface RequestWithRawBody extends ExpressRequest {
-//   rawBody?: any;
-// }
 
 // Middleware to add raw body to req object
 app.use('/api/v1/webhook/stripe', (req: RequestWithRawBody, res: Response, next: NextFunction) => {
@@ -68,8 +62,8 @@ app.use('/api/v1/webhook/stripe', (req: RequestWithRawBody, res: Response, next:
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }))
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, '..', 'views'));
-
+console.log('View path:', path.join(__dirname, 'views'));
+app.set('views', path.join(__dirname, '..', 'src', 'views'));
 
 
 // Health check
