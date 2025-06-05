@@ -76,7 +76,9 @@ export const intiate_remittance_payment = async ( payment_data: intiate_payment_
   const metadata = {
     transactionId: transaction.id,
     userId: payment_data.userId,
-    receiverId: payment_data.receiverId || receiver.id
+    receiverId: payment_data.receiverId || receiver.id,
+    user_email:sender.email
+
   };
 
   let payment_initiation;

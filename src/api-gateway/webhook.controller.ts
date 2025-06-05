@@ -87,7 +87,8 @@ const stripe = new Stripe(STRIPE_SECRET_KEY)
        if (transactionId) await process_successful_payment({ id: transactionId });
        break;
      }
- 
+  case 'charge.succeeded':
+    break;
      case 'payment_intent.payment_failed': {
        const intent = event.data.object as Stripe.PaymentIntent;
        const transactionId = intent.metadata?.transactionId;
