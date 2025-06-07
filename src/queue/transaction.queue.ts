@@ -20,13 +20,11 @@ transaction_queue.process("process-transaction", async (job) => {
          throw new Error(`Transaction ${transactionId} not found`);
        }
    
-       // Check expiration (10 mins)
-       const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
        if (transaction.status !== TransactionStatus.PENDING) {
          console.log(`Transaction ${transactionId} is not pending. Current status: ${transaction.status}`);
          return;
        }
-   
+          const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
     if (transaction.createdAt < tenMinutesAgo) {
       await prisma.transaction.update({
         where: { id: transactionId },

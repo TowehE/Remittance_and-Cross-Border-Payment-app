@@ -154,6 +154,19 @@ export const process_successful_payment = async (session: { id: string }) => {
       console.log(`Transaction ${transaction.id} already processed. Skipping.`);
       return;
     }
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    if (transaction.createdAt < tenMinutesAgo) {
+      console.log(`Transaction ${transaction.id} expired, cancelling instead of processing.`);
+      await update_transaction(transaction.id, { status: 'CANCELLED' });
+      return;
+    }
+
+    // Only allow processing if status is PENDING
+    if (transaction.status !== 'PENDING') {
+      console.log(`Transaction ${transaction.id} not pending, current status: ${transaction.status}`);
+      return;
+    }
+
 
     await update_transaction(transaction.id, { status: 'COMPLETED' });
 
