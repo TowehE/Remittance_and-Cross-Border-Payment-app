@@ -104,6 +104,8 @@ transaction_queue.process('auto-cancel', async (job) => {
     });
 
     
+
+
     if (result.count > 0) {
       console.log(`Transaction ${transactionId} auto-cancelled`);
     } else {

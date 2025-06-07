@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, TransactionStatus } from '@prisma/client'
 import { customError } from '../shared/middleware/error_middleware';
 import { v4 as uuidv4 } from 'uuid';
 import * as paystack_service from '../api-gateway/paystack.integration'
@@ -161,6 +161,20 @@ export const process_successful_payment = async (session: { id: string }) => {
       return;
     }
 
+      // ADD THIS: Final age check before marking as completed
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    if (transaction.createdAt < tenMinutesAgo) {
+      console.log(`🚫 Refusing to complete old transaction ${transaction.id}. Should be cancelled instead.`);
+      
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data: { 
+          status: TransactionStatus.CANCELLED,
+          failureReason: 'Transaction too old to process'
+        }
+      });
+      return;
+    }
     await update_transaction(transaction.id, { status: 'COMPLETED' });
 
    const sender_account = (transaction.sender?.accounts as AccountType[]).find((a) => a.currency === transaction.sourceCurrency
@@ -173,6 +187,7 @@ const receiver_account = (transaction.receiver?.accounts as AccountType[]).find(
       console.error('Accounts not found for transaction:', transaction.id);
       return;
     }
+    
 
     const sourceAmount = new Decimal(transaction.sourceAmount);
     const targetAmount = new Decimal(transaction.targetAmount);
