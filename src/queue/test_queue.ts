@@ -2,16 +2,23 @@ import { PrismaClient, TransactionStatus } from "@prisma/client";
 import { transaction_queue } from "../rate/redis.service";
 
 const prisma = new PrismaClient();
+  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+        
 
 async function schedule_pending_transactions() {
     try {
         // Get some of the pending transactions from database
         const pending_transactions = await prisma.transaction.findMany({
-            where: { status: 'PENDING' },
+            where: {
+                 status: 'PENDING',
+                 createdAt: { gte: tenMinutesAgo } 
+                },
+            
             take: 10
         });
         console.log(`Found ${pending_transactions.length} pending transactions`);
 
+        
         // Adding them to the queue
         for (const transaction of pending_transactions) {
             const job = await transaction_queue.add('process-transaction', {
@@ -45,9 +52,16 @@ async function schedule_auto_cancel_jobs() {
   });
  console.log(`Found ${stale_transactions.length} stale transactions to schedule for auto-cancel.`);
 
-  for (const tx of stale_transactions) {
-    await transaction_queue.add('auto-cancel', { transactionId: tx.id });
-  }
+ for (const tx of stale_transactions) {
+        await transaction_queue.add('auto-cancel', { 
+            transactionId: tx.id 
+        }, {
+            attempts: 3,
+            removeOnComplete: true,
+            removeOnFail: false,
+        });
+        console.log(`Added auto-cancel job for stale transaction: ${tx.id}`);
+    }
 }
 
 export function start_scheduled_jobs() {
