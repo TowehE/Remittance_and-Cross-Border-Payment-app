@@ -11,7 +11,6 @@ transaction_queue.process("process-transaction", async (job) => {
   console.log(`Processing transaction: ${transactionId}`);
 
   try {
-    // Step 1: Fetch transaction
     const transaction = await prisma.transaction.findUnique({
       where: { id: transactionId },
     });
@@ -34,7 +33,7 @@ transaction_queue.process("process-transaction", async (job) => {
       return;
     }
 
-    // Step 3: Lock it for processing
+ 
     const locked = await prisma.transaction.updateMany({
       where: {
         id: transactionId,
@@ -50,7 +49,7 @@ transaction_queue.process("process-transaction", async (job) => {
       return;
     }
 
-    // Step 4: Re-fetch with related user/accounts
+    
     const fullTransaction = await get_transaction_with_users(transactionId);
     if (!fullTransaction) throw new Error("Transaction with users not found");
 
@@ -82,30 +81,3 @@ transaction_queue.process("process-transaction", async (job) => {
 });
 
 
-
-
-transaction_queue.process("auto-cancel", async (job) => {
-  const { transactionId } = job.data;
-  try {
-    const transaction = await prisma.transaction.findUnique({
-      where: { id: transactionId },
-    });
-
-    if (
-      transaction &&
-      transaction.status === TransactionStatus.PENDING &&
-      transaction.createdAt < new Date(Date.now() - 10 * 60 * 1000)
-    ) {
-      await prisma.transaction.update({
-        where: { id: transactionId },
-        data: { status: TransactionStatus.CANCELLED },
-      });
-      console.log(`Transaction ${transactionId} auto-cancelled`);
-    } else {
-      console.log(`Transaction ${transactionId} not eligible for auto-cancel`);
-    }
-  } catch (error) {
-    console.error(`Error auto-cancelling transaction ${transactionId}:`, error);
-    throw error;
-  }
-});
