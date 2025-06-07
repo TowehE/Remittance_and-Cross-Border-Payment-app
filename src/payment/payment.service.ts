@@ -1,4 +1,4 @@
-import { PrismaClient, TransactionStatus } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
 import { customError } from '../shared/middleware/error_middleware';
 import { v4 as uuidv4 } from 'uuid';
 import * as paystack_service from '../api-gateway/paystack.integration'
@@ -7,7 +7,6 @@ import Decimal from 'decimal.js';
 import { Request } from 'express';
 import { create_account_transactions, create_transaction, find_transaction_by_Id, find_user_account_by_accountno, find_user_with_default_account, update_account_balance, update_transaction } from './payment.crud';
 import { validate_intiate_remittance_data } from './payment_middleware';
-import { transaction_queue } from '../rate/redis.service';
 
 
 
@@ -72,12 +71,7 @@ export const intiate_remittance_payment = async ( payment_data: intiate_payment_
       }
     }
   });
-
-  await transaction_queue.add(
-  'auto-cancel',
-  { transactionId: transaction.id },
-  { delay: 10 * 60 * 1000 } // 10 minutes
-);
+  
 
   const reference = `RM-${uuidv4()}`;
   const metadata = {
@@ -161,20 +155,6 @@ export const process_successful_payment = async (session: { id: string }) => {
       return;
     }
 
-      // ADD THIS: Final age check before marking as completed
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-    if (transaction.createdAt < tenMinutesAgo) {
-      console.log(`🚫 Refusing to complete old transaction ${transaction.id}. Should be cancelled instead.`);
-      
-      await prisma.transaction.update({
-        where: { id: transaction.id },
-        data: { 
-          status: TransactionStatus.CANCELLED,
-          failureReason: 'Transaction too old to process'
-        }
-      });
-      return;
-    }
     await update_transaction(transaction.id, { status: 'COMPLETED' });
 
    const sender_account = (transaction.sender?.accounts as AccountType[]).find((a) => a.currency === transaction.sourceCurrency
@@ -187,7 +167,6 @@ const receiver_account = (transaction.receiver?.accounts as AccountType[]).find(
       console.error('Accounts not found for transaction:', transaction.id);
       return;
     }
-    
 
     const sourceAmount = new Decimal(transaction.sourceAmount);
     const targetAmount = new Decimal(transaction.targetAmount);

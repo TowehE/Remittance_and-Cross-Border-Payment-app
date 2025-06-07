@@ -11,7 +11,7 @@ async function schedule_pending_transactions() {
         const pending_transactions = await prisma.transaction.findMany({
             where: {
                  status: 'PENDING',
-                 createdAt: { gte: tenMinutesAgo } 
+                //  createdAt: { gte: tenMinutesAgo } 
                 },
             
             take: 10
@@ -31,6 +31,7 @@ async function schedule_pending_transactions() {
             });
             console.log(`Added job ${job.id} for transaction: ${transaction.id}`);
         }
+        
 
         console.log('All jobs added to queue');
     } catch (error) {
