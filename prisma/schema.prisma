@@ -89,7 +89,8 @@
 
 
   enum TransactionStatus {
-    PENDING   
+    PENDING 
+    PROCESSING  
     COMPLETED
     FAILED
     CANCELLED
@@ -107,3 +108,4 @@
     CREDIT
     DEBIT
   }
+  
