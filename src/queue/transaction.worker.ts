@@ -18,9 +18,10 @@ process.on("SIGINT", () => {
   });
 });
 
+// Register processor for 'process-transaction' jobs specifically
 transaction_queue.process(
-  // Concurrency - adjust based on your capacity
-  5, 
+  'process-transaction', // Add the job name here
+  5, // Concurrency
   async (job) => {
     if (isShuttingDown) {
       console.log("Worker shutting down, skipping job");
@@ -122,7 +123,61 @@ transaction_queue.process(
   }
 );
 
-// Configure retries and backoff for jobs when added
+// Also register processor for 'auto-cancel-transaction' jobs (from your scheduler)
+transaction_queue.process(
+  'auto-cancel-transaction',
+  3, // Lower concurrency for auto-cancel jobs
+  async (job) => {
+    if (isShuttingDown) {
+      console.log("Worker shutting down, skipping job");
+      return;
+    }
+
+    const { transactionId, action } = job.data;
+    console.log(`Starting auto-cancel job for transaction: ${transactionId}`);
+
+    if (!transactionId) {
+      throw new Error("Job must include transactionId");
+    }
+
+    try {
+      const transaction = await prisma.transaction.findUnique({
+        where: { id: transactionId },
+      });
+
+      if (!transaction) {
+        throw new Error(`Transaction ${transactionId} not found`);
+      }
+
+      if (transaction.status !== TransactionStatus.PENDING) {
+        console.log(`Transaction ${transactionId} is not pending; skipping auto-cancel.`);
+        return;
+      }
+
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+      if (transaction.createdAt < tenMinutesAgo) {
+        await prisma.transaction.update({
+          where: { id: transactionId },
+          data: { status: TransactionStatus.CANCELLED },
+        });
+        console.log(`Transaction ${transactionId} auto-cancelled due to expiration`);
+      } else {
+        console.log(`Transaction ${transactionId} not old enough to cancel`);
+      }
+    } catch (error: any) {
+      console.error(`Failed to auto-cancel transaction ${transactionId}:`, error);
+      throw error;
+    }
+  }
+);
+
+// Configure error handling
 transaction_queue.on("failed", (job, err) => {
   console.error(`Job failed for transactionId ${job.data.transactionId}, action ${job.data.action}:`, err);
 });
+
+transaction_queue.on("completed", (job, result) => {
+  console.log(`Job completed for transactionId ${job.data.transactionId}, action ${job.data.action}`);
+});
+
+console.log("Transaction queue workers started successfully");
