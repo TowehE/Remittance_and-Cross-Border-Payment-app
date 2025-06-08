@@ -3,7 +3,7 @@ import { Request as ExpressRequest } from "express";
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import crypto from 'crypto'
-import { PrismaClient, TransactionStatus } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { PAYSTACK_WEBHOOK_SECRET, PAYSTACK_SECRET_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '../shared/config';
 import { process_successful_payment } from '../payment/payment.service';
 import { send_email } from "../utilis/email";
@@ -66,36 +66,10 @@ const stripe = new Stripe(STRIPE_SECRET_KEY)
 
 
      if (transactionId) {
-          // ADD THIS: Check transaction age before adding to queue
-          const transaction = await prisma.transaction.findUnique({
-            where: { id: transactionId }
-          });
-          
-          if (transaction) {
-            const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-            
-            if (transaction.createdAt < tenMinutesAgo) {
-              console.log(` Webhook received for old transaction ${transactionId} (created: ${transaction.createdAt}). Not processing.`);
-              
-              // Auto-cancel instead of processing
-              await prisma.transaction.update({
-                where: { id: transactionId },
-                data: { 
-                  status: TransactionStatus.CANCELLED,
-                  failureReason: 'Payment received too late - transaction expired'
-                }
-              });
-              
-              return res.status(200).json({ received: true, message: 'Transaction expired' });
-            }
-            
- console.log(`Webhook received for recent transaction ${transactionId}. Adding to queue.`);
 
+      
   await transaction_queue.add('process-transaction', { transactionId });
-   } else {
-            console.log(`Transaction ${transactionId} not found in webhook`);
-          }
-        }
+}
       // send confirmation emailafter webhook has been processed
       const email = session.customer_details?.email || session.metadata?.email
 
@@ -173,22 +147,6 @@ export const handle_paystack_webhook_event = async (req: RequestWithRawBody, res
         });
         
         if (transaction) {
-            const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-          
-          if (transaction.createdAt < tenMinutesAgo) {
-            console.log(` Paystack webhook received for old transaction ${transaction.id} (created: ${transaction.createdAt}). Not processing.`);
-            
-            await prisma.transaction.update({
-              where: { id: transaction.id },
-              data: { 
-                status: TransactionStatus.CANCELLED,
-                failureReason: 'Payment received too late - transaction expired'
-              }
-            });
-            
-            return res.status(200).json({ received: true, message: 'Transaction expired' });
-          }
-          
           // await process_successful_payment({ id: transaction.id });
           await transaction_queue.add('process-transaction', { transactionId: transaction.id });
 

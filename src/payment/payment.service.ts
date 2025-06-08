@@ -141,41 +141,27 @@ export const intiate_remittance_payment = async ( payment_data: intiate_payment_
   throw new customError('Unsupported payment provider', 400);
 };
 
-export const process_successful_payment = async (session: { id: string }) => {
-  try {
-    const transaction = await find_transaction_by_Id(session.id);
 
+
+export const process_successful_payment = async (session: { id: string }) => {
+    try {
+      const transaction = await find_transaction_by_Id(session.id);
     if (!transaction) {
       console.error('Transaction not found for payment:', session.id);
       return;
     }
-
     if (transaction.status === 'COMPLETED') {
       console.log(`Transaction ${transaction.id} already processed. Skipping.`);
       return;
     }
 
-    if (transaction.status !== "PENDING" && transaction.status !== "PROCESSING") {
-      console.log(`Transaction ${transaction.id} status not valid for processing, current status: ${transaction.status}`);
-      return;
-    }
-
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-    if (transaction.createdAt < tenMinutesAgo) {
-      console.log(`Transaction ${transaction.id} expired, cancelling instead of processing.`);
-      await update_transaction(transaction.id, { status: 'CANCELLED' });
-      return;
-    }
-
     await update_transaction(transaction.id, { status: 'COMPLETED' });
 
-    const sender_account = (transaction.sender?.accounts as AccountType[]).find(
-      (a) => a.currency === transaction.sourceCurrency
-    );
+   const sender_account = (transaction.sender?.accounts as AccountType[]).find((a) => a.currency === transaction.sourceCurrency
+);
 
-    const receiver_account = (transaction.receiver?.accounts as AccountType[]).find(
-      (a) => a.currency === transaction.targetCurrency
-    );
+const receiver_account = (transaction.receiver?.accounts as AccountType[]).find((a) => a.currency === transaction.targetCurrency
+);
 
     if (!sender_account || !receiver_account) {
       console.error('Accounts not found for transaction:', transaction.id);
@@ -210,9 +196,9 @@ export const process_successful_payment = async (session: { id: string }) => {
       }
     ]);
 
-    console.log(`Payment processed successfully for transaction ${transaction.id}`);
-  } catch (error) {
-    console.error('Error processing payment:', error);
-    throw new customError('Failed to process successful payment', 500);
-  }
-};
+       console.log(`Payment processed successfully for transaction ${transaction.id}`);
+    } catch (error) {
+        console.error('Error processing payment:', error);
+        throw new customError('Failed to process successful payment', 500);
+    }
+};;

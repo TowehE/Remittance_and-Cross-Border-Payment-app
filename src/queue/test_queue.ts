@@ -11,7 +11,7 @@ async function schedule_pending_transactions() {
         const pending_transactions = await prisma.transaction.findMany({
             where: {
                  status: 'PENDING',
-                //  createdAt: { gte: tenMinutesAgo } 
+                 createdAt: { gte: tenMinutesAgo } 
                 },
             
             take: 10
