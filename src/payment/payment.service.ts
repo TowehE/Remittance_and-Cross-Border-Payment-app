@@ -71,7 +71,6 @@ export const intiate_remittance_payment = async ( payment_data: intiate_payment_
       }
     }
   });
-  
 
   const reference = `RM-${uuidv4()}`;
   const metadata = {

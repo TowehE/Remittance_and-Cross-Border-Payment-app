@@ -1,1 +1,1 @@
-import './transaction.worker';
+import './transaction.queue';
