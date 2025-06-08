@@ -1,74 +1,61 @@
-import { PrismaClient, TransactionStatus } from "@prisma/client";
 import { transaction_queue } from "../rate/redis.service";
+import { PrismaClient, TransactionStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
+
+const BATCH_SIZE = 5;
+
+async function scheduleTransactionJobs() {
+  console.log("Scheduling pending transaction processing jobs...");
+  
+  const pendingTransactions = await prisma.transaction.findMany({
+    where: { status: TransactionStatus.PENDING },
+    take: BATCH_SIZE,
+  });
+
+  for (const txn of pendingTransactions) {
+    await transaction_queue.add("process-transaction", {
+      transactionId: txn.id,
+      action: "process",
+    }, {
+      attempts: 5,
+      backoff: { type: "exponential", delay: 5000 },
+      removeOnComplete: true,
+    });
+  }
+
+  console.log("Scheduling auto-cancel jobs for expired transactions...");
+  
   const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-        
 
-async function schedule_pending_transactions() {
-    try {
-        // Get some of the pending transactions from database
-        const pending_transactions = await prisma.transaction.findMany({
-            where: {
-                 status: 'PENDING',
-                 createdAt: { gte: tenMinutesAgo } 
-                },
-            
-            take: 10
-        });
-        console.log(`Found ${pending_transactions.length} pending transactions`);
-
-        
-        // Adding them to the queue
-        for (const transaction of pending_transactions) {
-            const job = await transaction_queue.add('process-transaction', {
-                transactionId: transaction.id
-                    }, {
-            attempts: 5,
-            backoff: { type: 'exponential', delay: 2000 },
-            removeOnComplete: true,
-            removeOnFail: false,
-            });
-            console.log(`Added job ${job.id} for transaction: ${transaction.id}`);
-        }
-        
-
-        console.log('All jobs added to queue');
-    } catch (error) {
-        console.error('Error testing queue:', error);
-    }
-}
-
-
-// Schedule only transactions that are older than 10 minutes and still PENDING
-async function schedule_auto_cancel_jobs() {
-  const threshold = new Date(Date.now() - 10 * 60 * 1000);
-
-  const stale_transactions = await prisma.transaction.findMany({
+  const expiredTransactions = await prisma.transaction.findMany({
     where: {
       status: TransactionStatus.PENDING,
-      createdAt: { lt: threshold },
+      createdAt: { lt: tenMinutesAgo },
     },
-    take: 5,
+    take: BATCH_SIZE,
   });
- console.log(`Found ${stale_transactions.length} stale transactions to schedule for auto-cancel.`);
 
- for (const tx of stale_transactions) {
-        await transaction_queue.add('auto-cancel', { 
-            transactionId: tx.id 
-        }, {
-            attempts: 3,
-            removeOnComplete: true,
-            removeOnFail: false,
-        });
-        console.log(`Added auto-cancel job for stale transaction: ${tx.id}`);
-    }
+  for (const txn of expiredTransactions) {
+    await transaction_queue.add("auto-cancel-transaction", {
+      transactionId: txn.id,
+      action: "auto-cancel",
+    }, {
+      attempts: 3,
+      backoff: { type: "fixed", delay: 10000 },
+      removeOnComplete: true,
+    });
+  }
+
+  console.log("Scheduling completed.");
 }
 
-export function start_scheduled_jobs() {
-  schedule_pending_transactions();
-  schedule_auto_cancel_jobs();
+export function startScheduler() {
+  // Run once immediately
+  scheduleTransactionJobs().catch(console.error);
 
-  setInterval(schedule_pending_transactions, 5 * 60 * 1000);
-  setInterval(schedule_auto_cancel_jobs, 5 * 60 * 1000);
+  // Schedule to run every 5 minutes
+  setInterval(() => {
+    scheduleTransactionJobs().catch(console.error);
+  }, 5 * 60 * 1000);
 }
