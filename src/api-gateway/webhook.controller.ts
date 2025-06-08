@@ -67,8 +67,11 @@ const stripe = new Stripe(STRIPE_SECRET_KEY)
 
      if (transactionId) {
 
-      
-  await transaction_queue.add('process-transaction', { transactionId });
+     await transaction_queue.add('process-transaction', { 
+  transactionId, 
+  action: 'process' 
+});
+
 }
       // send confirmation emailafter webhook has been processed
       const email = session.customer_details?.email || session.metadata?.email
@@ -148,7 +151,10 @@ export const handle_paystack_webhook_event = async (req: RequestWithRawBody, res
         
         if (transaction) {
           // await process_successful_payment({ id: transaction.id });
-          await transaction_queue.add('process-transaction', { transactionId: transaction.id });
+         await transaction_queue.add('process-transaction', {
+    transactionId: transaction.id,
+    action: 'process'
+  });
 
 
             const user = await prisma.user.findUnique({
