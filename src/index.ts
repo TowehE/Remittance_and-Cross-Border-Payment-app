@@ -4,9 +4,8 @@ dotenv.config();
 
 import { PrismaClient } from '@prisma/client';
 import app from './server';
-import { startScheduler } from './queue/test_queue';
+import {  startScheduler } from './queue/test_queue';
 import './queue/worker.job';
-
 
 
 const PORT = process.env.PORT || 4900
