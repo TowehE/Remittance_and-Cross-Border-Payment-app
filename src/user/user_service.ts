@@ -20,6 +20,7 @@ export interface user_registration_data{
 }
 
 
+
 export interface user_login_data {
     email: string;
     password: string;
@@ -143,11 +144,7 @@ if (!user){
 }
 
  // Verify password
- const isPasswordValid = await bcrypt.compare(user_data.password, user.password);
-  
- if (!isPasswordValid) {
-   throw new customError('Invalid password', 401);
- }
+ 
 
   // Generate a JWT 
 const token = jwt.sign(

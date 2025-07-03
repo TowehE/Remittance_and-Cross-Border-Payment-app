@@ -65,6 +65,8 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date() });
 });
 
+
+
 // Home page
 app.get('/', (req, res) => {
   res.status(200).json({ status: 'Remittance app is running', timestamp: new Date() });
